@@ -1,0 +1,16 @@
+# Netlify config — deploys the Vite/React frontend.
+# In Netlify: Add new site → Import from GitHub → pick this repo.
+# It reads this file; set VITE_API_URL in Site settings → Environment variables.
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback so React Router routes (e.g. /quizzes/123) work on refresh.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
