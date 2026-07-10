@@ -1,0 +1,29 @@
+# Render Blueprint — deploys the FastAPI backend as a Web Service.
+# In Render: New + → Blueprint → connect this repo. Render reads this file.
+# Secrets marked `sync: false` are entered in the Render dashboard (not in git).
+services:
+  - type: web
+    name: quizplatform-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: MONGO_URI
+        sync: false # paste your MongoDB Atlas connection string
+      - key: DB_NAME
+        value: quizapp
+      - key: JWT_SECRET
+        generateValue: true # Render generates a strong secret
+      - key: JWT_EXPIRE_MINUTES
+        value: "1440"
+      - key: ADMIN_EMAIL
+        value: admin@quiz.com
+      - key: ADMIN_PASSWORD
+        sync: false # set your admin password
+      - key: CORS_ORIGINS
+        sync: false # your deployed frontend URL, e.g. https://xxxx.netlify.app
