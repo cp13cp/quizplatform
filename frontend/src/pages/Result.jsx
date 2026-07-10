@@ -26,9 +26,14 @@ export default function Result() {
           You scored <strong>{result.score}</strong> out of{" "}
           <strong>{result.total}</strong>
         </p>
-        <Link className="btn" to="/quizzes">
-          Back to Quizzes
-        </Link>
+        <div className="row" style={{ justifyContent: "center" }}>
+          <Link className="btn" to="/quizzes">
+            Back to Quizzes
+          </Link>
+          <Link className="btn" to={`/leaderboard/${result.quiz_id}`}>
+            🏆 Leaderboard
+          </Link>
+        </div>
       </div>
 
       <h2>Review</h2>

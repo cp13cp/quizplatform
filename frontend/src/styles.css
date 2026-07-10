@@ -216,6 +216,104 @@ input[type="radio"] {
   flex-direction: column;
   gap: 0.5rem;
 }
+
+/* Take-quiz layout: main question + side navigator */
+.take-layout {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 1rem;
+  align-items: start;
+}
+.q-text {
+  font-size: 1.1rem;
+  margin: 0.5rem 0 1rem;
+}
+.take-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.2rem;
+  flex-wrap: wrap;
+}
+.take-actions .spacer {
+  flex: 1;
+}
+.take-nav {
+  position: sticky;
+  top: 1rem;
+}
+.take-nav h4 {
+  margin: 0 0 0.7rem;
+}
+.nav-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+.nav-cell {
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.nav-cell.answered {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+.nav-cell.marked {
+  background: #fed7aa;
+  border-color: #fdba74;
+}
+.nav-cell.current {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.nav-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.nav-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+.nav-legend .dot {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: #fff;
+  display: inline-block;
+}
+.nav-legend .dot.answered {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+.nav-legend .dot.marked {
+  background: #fed7aa;
+  border-color: #fdba74;
+}
+.badge.orange {
+  background: #fed7aa;
+  color: #9a3412;
+}
+@media (max-width: 700px) {
+  .take-layout {
+    grid-template-columns: 1fr;
+  }
+  .take-nav {
+    position: static;
+  }
+}
 .option {
   display: flex;
   align-items: center;
@@ -305,6 +403,10 @@ input[type="radio"] {
 }
 .table th {
   background: #f9fafb;
+  font-weight: 600;
+}
+.table tr.top-rank td {
+  background: #fffbeb;
   font-weight: 600;
 }
 

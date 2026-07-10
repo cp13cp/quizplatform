@@ -10,6 +10,7 @@ from ..models import (
     AttemptSummary,
     Question,
     QuizAdminDetail,
+    QuizCreate,
     QuizSummary,
     QuizUpdate,
 )
@@ -71,6 +72,35 @@ async def upload_quiz_pdf(
         "created_by": admin["_id"],
         "created_at": datetime.now(timezone.utc),
         "source_filename": file.filename,
+    }
+    result = await db.quizzes.insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return _admin_detail(doc)
+
+
+@router.post("/quizzes", response_model=QuizAdminDetail)
+async def create_quiz(payload: QuizCreate, admin: dict = Depends(require_admin)):
+    """Create a quiz manually (no PDF)."""
+    db = get_db()
+    questions = [q.model_dump() for q in payload.questions]
+    if not questions:
+        # Start with one blank question the admin can edit on the detail page.
+        questions = [
+            {
+                "text": "New question",
+                "options": ["Option 1", "Option 2"],
+                "correct_index": 0,
+            }
+        ]
+    doc = {
+        "title": payload.title,
+        "description": payload.description,
+        "time_limit_seconds": max(0, payload.time_limit_seconds),
+        "questions": questions,
+        "is_published": False,
+        "created_by": admin["_id"],
+        "created_at": datetime.now(timezone.utc),
+        "source_filename": None,
     }
     result = await db.quizzes.insert_one(doc)
     doc["_id"] = result.inserted_id

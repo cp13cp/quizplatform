@@ -7,6 +7,7 @@ from ..database import get_db
 from ..models import (
     AnswerReview,
     AttemptResult,
+    LeaderboardEntry,
     QuestionPublic,
     QuizForTaking,
     QuizSummary,
@@ -63,6 +64,42 @@ async def get_quiz_for_taking(quiz_id: str, user: dict = Depends(get_current_use
             for q in quiz.get("questions", [])
         ],
     )
+
+
+@router.get("/{quiz_id}/leaderboard", response_model=list[LeaderboardEntry])
+async def leaderboard(quiz_id: str, user: dict = Depends(get_current_user)):
+    """Ranked best attempt per user for a quiz (highest %, then fastest time)."""
+    db = get_db()
+    quiz = await _get_quiz_or_404(quiz_id)
+    cursor = db.attempts.find({"quiz_id": quiz["_id"]})
+
+    best: dict = {}
+    async for a in cursor:
+        uid = a["user_id"]
+        cur = best.get(uid)
+        better = cur is None or (
+            a["percentage"],
+            -a.get("time_taken_seconds", 0),
+        ) > (cur["percentage"], -cur.get("time_taken_seconds", 0))
+        if better:
+            best[uid] = a
+
+    ranked = sorted(
+        best.values(),
+        key=lambda a: (-a["percentage"], a.get("time_taken_seconds", 0)),
+    )
+    return [
+        LeaderboardEntry(
+            rank=i + 1,
+            user_name=a.get("user_name", ""),
+            score=a["score"],
+            total=a["total"],
+            percentage=a["percentage"],
+            time_taken_seconds=a.get("time_taken_seconds", 0),
+            submitted_at=a["submitted_at"],
+        )
+        for i, a in enumerate(ranked)
+    ]
 
 
 @router.post("/{quiz_id}/submit", response_model=AttemptResult)

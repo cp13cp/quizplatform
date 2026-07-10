@@ -1,9 +1,11 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
+import AdminCreate from "./pages/AdminCreate.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminQuizDetail from "./pages/AdminQuizDetail.jsx";
 import AdminUpload from "./pages/AdminUpload.jsx";
+import Leaderboard from "./pages/Leaderboard.jsx";
 import Login from "./pages/Login.jsx";
 import Notes from "./pages/Notes.jsx";
 import Quizzes from "./pages/Quizzes.jsx";
@@ -64,6 +66,22 @@ export default function App() {
           element={
             <Protected>
               <Notes />
+            </Protected>
+          }
+        />
+        <Route
+          path="/leaderboard/:id"
+          element={
+            <Protected>
+              <Leaderboard />
+            </Protected>
+          }
+        />
+        <Route
+          path="/admin/create"
+          element={
+            <Protected adminOnly>
+              <AdminCreate />
             </Protected>
           }
         />

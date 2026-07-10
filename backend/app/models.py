@@ -46,6 +46,13 @@ class QuestionPublic(BaseModel):
     options: list[str]
 
 
+class QuizCreate(BaseModel):
+    title: str
+    description: str = ""
+    time_limit_seconds: int = Field(default=0, ge=0)
+    questions: list[Question] = []
+
+
 class QuizUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
@@ -108,6 +115,16 @@ class AttemptSummary(BaseModel):
     id: str
     user_name: str
     user_email: str
+    score: int
+    total: int
+    percentage: float
+    time_taken_seconds: int
+    submitted_at: datetime
+
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    user_name: str
     score: int
     total: int
     percentage: float

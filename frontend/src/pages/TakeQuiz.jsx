@@ -13,7 +13,9 @@ export default function TakeQuiz() {
   const navigate = useNavigate();
   const [quiz, setQuiz] = useState(null);
   const [answers, setAnswers] = useState([]);
-  const [remaining, setRemaining] = useState(null); // seconds left, null = no limit
+  const [marked, setMarked] = useState([]); // marked-for-review flags
+  const [current, setCurrent] = useState(0); // current question index
+  const [remaining, setRemaining] = useState(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -41,7 +43,6 @@ export default function TakeQuiz() {
     [answers, id, navigate]
   );
 
-  // Keep a ref to latest submit so the timer interval always calls the current one.
   const submitRef = useRef(submit);
   useEffect(() => {
     submitRef.current = submit;
@@ -53,6 +54,7 @@ export default function TakeQuiz() {
       .then(({ data }) => {
         setQuiz(data);
         setAnswers(new Array(data.questions.length).fill(-1));
+        setMarked(new Array(data.questions.length).fill(false));
         if (data.time_limit_seconds > 0) setRemaining(data.time_limit_seconds);
         startRef.current = Date.now();
       })
@@ -61,7 +63,6 @@ export default function TakeQuiz() {
       );
   }, [id]);
 
-  // Countdown timer.
   useEffect(() => {
     if (remaining === null) return;
     if (remaining <= 0) {
@@ -72,19 +73,42 @@ export default function TakeQuiz() {
     return () => clearTimeout(t);
   }, [remaining]);
 
-  const choose = (qi, oi) => {
-    setAnswers((prev) => {
-      const next = [...prev];
-      next[qi] = oi;
-      return next;
-    });
+  const choose = (oi) =>
+    setAnswers((prev) => prev.map((a, i) => (i === current ? oi : a)));
+
+  const clearAnswer = () =>
+    setAnswers((prev) => prev.map((a, i) => (i === current ? -1 : a)));
+
+  const toggleMark = () =>
+    setMarked((prev) => prev.map((m, i) => (i === current ? !m : m)));
+
+  const go = (i) => setCurrent(Math.max(0, Math.min(i, quiz.questions.length - 1)));
+
+  const handleSubmit = () => {
+    const unanswered = answers.filter((a) => a < 0).length;
+    if (
+      unanswered > 0 &&
+      !window.confirm(
+        `${unanswered} question(s) are unanswered. Submit anyway?`
+      )
+    )
+      return;
+    submit(false);
   };
 
   if (error && !quiz) return <div className="container error">{error}</div>;
   if (!quiz) return <div className="container">Loading…</div>;
 
+  const q = quiz.questions[current];
   const answeredCount = answers.filter((a) => a >= 0).length;
   const lowTime = remaining !== null && remaining <= 10;
+
+  const statusClass = (i) => {
+    if (i === current) return "current";
+    if (marked[i]) return "marked";
+    if (answers[i] >= 0) return "answered";
+    return "";
+  };
 
   return (
     <div className="container">
@@ -102,34 +126,107 @@ export default function TakeQuiz() {
         )}
       </div>
 
-      {quiz.questions.map((q, qi) => (
-        <div className="card question" key={qi}>
-          <h3>
-            {qi + 1}. {q.text}
-          </h3>
+      <div className="take-layout">
+        {/* Current question */}
+        <div className="card question take-main">
+          <div className="quiz-header">
+            <h3>
+              Question {current + 1} of {quiz.questions.length}
+            </h3>
+            {marked[current] && <span className="badge orange">Marked</span>}
+          </div>
+          <p className="q-text">{q.text}</p>
           <div className="options">
             {q.options.map((opt, oi) => (
               <label
                 key={oi}
-                className={`option ${answers[qi] === oi ? "selected" : ""}`}
+                className={`option ${answers[current] === oi ? "selected" : ""}`}
               >
                 <input
                   type="radio"
-                  name={`q-${qi}`}
-                  checked={answers[qi] === oi}
-                  onChange={() => choose(qi, oi)}
+                  name={`q-${current}`}
+                  checked={answers[current] === oi}
+                  onChange={() => choose(oi)}
                 />
-                <span>{opt}</span>
+                <span>
+                  <strong>{String.fromCharCode(65 + oi)}.</strong> {opt}
+                </span>
               </label>
             ))}
           </div>
-        </div>
-      ))}
 
-      {error && <p className="error">{error}</p>}
-      <button className="btn btn-lg" disabled={submitting} onClick={() => submit(false)}>
-        {submitting ? "Submitting…" : "Submit Quiz"}
-      </button>
+          <div className="take-actions">
+            <button
+              className="btn-link"
+              onClick={clearAnswer}
+              disabled={answers[current] < 0}
+            >
+              Clear
+            </button>
+            <button className="btn-link" onClick={toggleMark}>
+              {marked[current] ? "★ Unmark" : "☆ Mark for review"}
+            </button>
+            <div className="spacer" />
+            <button
+              className="btn"
+              onClick={() => go(current - 1)}
+              disabled={current === 0}
+            >
+              ← Prev
+            </button>
+            <button
+              className="btn"
+              onClick={() => go(current + 1)}
+              disabled={current === quiz.questions.length - 1}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+
+        {/* Navigator */}
+        <div className="card take-nav">
+          <h4>Questions</h4>
+          <div className="nav-grid">
+            {quiz.questions.map((_, i) => (
+              <button
+                key={i}
+                className={`nav-cell ${statusClass(i)}`}
+                onClick={() => go(i)}
+                title={
+                  marked[i]
+                    ? "Marked for review"
+                    : answers[i] >= 0
+                    ? "Answered"
+                    : "Not answered"
+                }
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+          <ul className="nav-legend">
+            <li>
+              <span className="dot answered" /> Answered
+            </li>
+            <li>
+              <span className="dot marked" /> Marked
+            </li>
+            <li>
+              <span className="dot" /> Not answered
+            </li>
+          </ul>
+          {error && <p className="error">{error}</p>}
+          <button
+            className="btn btn-lg"
+            disabled={submitting}
+            onClick={handleSubmit}
+            style={{ width: "100%" }}
+          >
+            {submitting ? "Submitting…" : "Submit Quiz"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

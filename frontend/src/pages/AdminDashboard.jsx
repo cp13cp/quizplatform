@@ -22,9 +22,14 @@ export default function AdminDashboard() {
     <div className="container">
       <div className="quiz-header">
         <h1>Admin Dashboard</h1>
-        <Link className="btn" to="/admin/upload">
-          + Upload Quiz PDF
-        </Link>
+        <div className="row">
+          <Link className="btn" to="/admin/create">
+            + Create Manually
+          </Link>
+          <Link className="btn" to="/admin/upload">
+            + Upload PDF
+          </Link>
+        </div>
       </div>
 
       {quizzes.length === 0 ? (

@@ -68,9 +68,14 @@ export default function Quizzes() {
               <span>❓ {q.question_count} questions</span>
               <span>⏱ {fmtTime(q.time_limit_seconds)}</span>
             </div>
-            <Link className="btn" to={`/quizzes/${q.id}`}>
-              Start Quiz
-            </Link>
+            <div className="row">
+              <Link className="btn" to={`/quizzes/${q.id}`}>
+                Start Quiz
+              </Link>
+              <Link className="btn-link" to={`/leaderboard/${q.id}`}>
+                🏆 Leaderboard
+              </Link>
+            </div>
           </div>
         ))}
       </div>
