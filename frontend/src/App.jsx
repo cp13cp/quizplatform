@@ -12,6 +12,7 @@ import Quizzes from "./pages/Quizzes.jsx";
 import Register from "./pages/Register.jsx";
 import Result from "./pages/Result.jsx";
 import TakeQuiz from "./pages/TakeQuiz.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
 
 function Protected({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -36,6 +37,7 @@ export default function App() {
         />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         <Route
           path="/quizzes"

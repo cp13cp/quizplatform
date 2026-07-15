@@ -22,8 +22,14 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
-  const register = async (name, email, password) => {
-    const { data } = await api.post("/auth/register", { name, email, password });
+  const register = async (name, email, password, otp, confirmPassword) => {
+    const { data } = await api.post("/auth/register", {
+      name,
+      email,
+      password,
+      confirm_password: confirmPassword,
+      otp,
+    });
     persist(data.access_token, data.user);
     return data.user;
   };

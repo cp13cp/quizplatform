@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 # ---------- Auth ----------
 
@@ -10,6 +10,31 @@ class UserRegister(BaseModel):
     name: str
     email: EmailStr
     password: str = Field(min_length=4)
+    confirm_password: str = Field(min_length=4)
+    otp: str = Field(..., min_length=4, max_length=8)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self
+
+
+class OTPRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPassword(BaseModel):
+    email: EmailStr
+    otp: str = Field(..., min_length=4, max_length=8)
+    password: str = Field(min_length=4)
+    confirm_password: str = Field(min_length=4)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self
 
 
 class UserLogin(BaseModel):
@@ -120,6 +145,29 @@ class AttemptSummary(BaseModel):
     percentage: float
     time_taken_seconds: int
     submitted_at: datetime
+
+
+class QuizParticipation(BaseModel):
+    """A registered student's participation state for one quiz."""
+
+    user_name: str
+    user_email: str
+    has_attempted: bool
+
+
+class QuizParticipationStatsDay(BaseModel):
+    date: datetime
+    attempted: int
+    not_attempted: int
+    total_students: int
+
+
+class QuizParticipationStats(BaseModel):
+    total_students: int
+    attempted: int
+    not_attempted: int
+    period_days: int
+    daily: list[QuizParticipationStatsDay]
 
 
 class LeaderboardEntry(BaseModel):

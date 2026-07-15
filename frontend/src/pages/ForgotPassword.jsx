@@ -1,30 +1,29 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../api";
-import { useAuth } from "../context/AuthContext.jsx";
 
-export default function Register() {
-  const { register } = useAuth();
+export default function ForgotPassword() {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [otpError, setOtpError] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [otpBusy, setOtpBusy] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
 
   const sendOtp = async () => {
-    setOtpError("");
+    setError("");
+    setMessage("");
     setOtpBusy(true);
     try {
       await api.post("/auth/send-otp", { email });
       setOtpSent(true);
+      setMessage("OTP sent to your email. Use it below to reset your password.");
     } catch (err) {
-      setOtpError(err.response?.data?.detail || "Failed to send OTP");
+      setError(err.response?.data?.detail || "Failed to send OTP");
     } finally {
       setOtpBusy(false);
     }
@@ -33,16 +32,23 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    setMessage("");
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
     setBusy(true);
     try {
-      if (password !== confirmPassword) {
-        setError("Passwords do not match");
-      } else {
-        await register(name, email, password, otp, confirmPassword);
-        navigate("/quizzes");
-      }
+      await api.post("/auth/reset-password", {
+        email,
+        otp,
+        password,
+        confirm_password: confirmPassword,
+      });
+      setMessage("Password reset successfully. Please login.");
+      navigate("/login");
     } catch (err) {
-      setError(err.response?.data?.detail || "Registration failed");
+      setError(err.response?.data?.detail || "Reset failed");
     } finally {
       setBusy(false);
     }
@@ -51,10 +57,8 @@ export default function Register() {
   return (
     <div className="container narrow">
       <div className="card">
-        <h2>Create account</h2>
+        <h2>Reset Password</h2>
         <form onSubmit={submit}>
-          <label>Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} required />
           <label>Email</label>
           <input
             type="email"
@@ -63,7 +67,7 @@ export default function Register() {
             required
           />
           <p className="muted">
-            Enter your email and click <strong>Send OTP</strong> to receive a verification code.
+            Enter your email and click <strong>Send OTP</strong> to receive a reset code.
           </p>
           <button
             type="button"
@@ -74,7 +78,8 @@ export default function Register() {
             {otpBusy ? "Sending OTP…" : "Send OTP"}
           </button>
           {otpSent && <p className="success">OTP sent to {email}</p>}
-          {otpError && <p className="error">{otpError}</p>}
+          {message && <p className="success">{message}</p>}
+          {error && <p className="error">{error}</p>}
           <label>OTP</label>
           <input
             type="text"
@@ -84,7 +89,7 @@ export default function Register() {
             maxLength={8}
             required
           />
-          <label>Password</label>
+          <label>New password</label>
           <input
             type="password"
             value={password}
@@ -92,7 +97,7 @@ export default function Register() {
             minLength={4}
             required
           />
-          <label>Confirm password</label>
+          <label>Confirm new password</label>
           <input
             type="password"
             value={confirmPassword}
@@ -100,13 +105,12 @@ export default function Register() {
             minLength={4}
             required
           />
-          {error && <p className="error">{error}</p>}
           <button className="btn" disabled={busy || !otpSent}>
-            {busy ? "Creating…" : "Register"}
+            {busy ? "Resetting…" : "Reset Password"}
           </button>
         </form>
         <p className="muted">
-          Have an account? <Link to="/login">Login</Link>
+          Remembered password? <Link to="/login">Login</Link>
         </p>
       </div>
     </div>

@@ -130,7 +130,9 @@ python scripts/make_sample_pdf.py     # sample_quiz.pdf banega
 
 | Method | Endpoint                          | Role  | Kaam                          |
 | ------ | --------------------------------- | ----- | ----------------------------- |
+| POST   | `/auth/send-otp`                  | -     | Send OTP to email before signup or password reset |
 | POST   | `/auth/register`                  | -     | User register                 |
+| POST   | `/auth/reset-password`            | -     | Reset password using OTP      |
 | POST   | `/auth/login`                     | -     | Login (admin/user)            |
 | GET    | `/quizzes`                        | user  | Published quizzes list        |
 | GET    | `/quizzes/{id}`                   | user  | Quiz (answers hidden)         |

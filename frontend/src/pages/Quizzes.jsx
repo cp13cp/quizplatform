@@ -2,6 +2,40 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api";
 
+function buildMiniQuiz() {
+  const pool = [
+    { question: "2 + 2 = ?", options: ["3", "4", "5", "6"], answer: "4" },
+    {
+      question: "Which planet is called the Red Planet?",
+      options: ["Venus", "Mars", "Mercury", "Jupiter"],
+      answer: "Mars",
+    },
+    {
+      question: "How many days are there in a week?",
+      options: ["5", "6", "7", "8"],
+      answer: "7",
+    },
+    {
+      question: "Which is a prime number?",
+      options: ["4", "6", "7", "8"],
+      answer: "7",
+    },
+    {
+      question: "What color do you get when you mix blue and yellow?",
+      options: ["Red", "Green", "Purple", "Orange"],
+      answer: "Green",
+    },
+  ];
+
+  return [...pool]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 3)
+    .map((item) => ({
+      ...item,
+      options: [...item.options].sort(() => Math.random() - 0.5),
+    }));
+}
+
 function fmtTime(sec) {
   if (!sec) return "No limit";
   const m = Math.floor(sec / 60);
@@ -13,8 +47,11 @@ export default function Quizzes() {
   const [quizzes, setQuizzes] = useState([]);
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [miniQuiz, setMiniQuiz] = useState([]);
 
   useEffect(() => {
+    setMiniQuiz(buildMiniQuiz());
+
     Promise.all([api.get("/quizzes"), api.get("/quizzes/attempts/me")])
       .then(([q, a]) => {
         setQuizzes(q.data);
@@ -23,7 +60,35 @@ export default function Quizzes() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="container">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="container">
+        <div className="loading-card">
+          <div className="loading-spinner" />
+          <h2>Data is loading</h2>
+          <p className="muted">
+            It may take around 50 seconds to load the data. Meanwhile, try solving
+            this short quiz.
+          </p>
+
+          <div className="mini-quiz-list">
+            {miniQuiz.map((item, index) => (
+              <div className="mini-quiz-item" key={`${item.question}-${index}`}>
+                <p>{index + 1}. {item.question}</p>
+                <div className="mini-options">
+                  {item.options.map((option) => (
+                    <span className="mini-option" key={`${item.question}-${option}`}>
+                      {option}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const completed = new Set(attempts.map((a) => a.quiz_id)).size;
   const avgScore = attempts.length

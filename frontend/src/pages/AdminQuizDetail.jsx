@@ -8,6 +8,9 @@ export default function AdminQuizDetail() {
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [results, setResults] = useState([]);
+  const [participation, setParticipation] = useState([]);
+  const [participationStats, setParticipationStats] = useState(null);
+  const [statsDays, setStatsDays] = useState(7);
   const [minutes, setMinutes] = useState(0);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -28,9 +31,23 @@ export default function AdminQuizDetail() {
   const loadResults = () =>
     api.get(`/admin/quizzes/${id}/results`).then(({ data }) => setResults(data));
 
+  const loadParticipation = () =>
+    api
+      .get(`/admin/quizzes/${id}/participation`)
+      .then(({ data }) => setParticipation(data));
+
+  const loadParticipationStats = (days = statsDays) =>
+    api
+      .get(`/admin/quizzes/${id}/participation-stats`, {
+        params: { days },
+      })
+      .then(({ data }) => setParticipationStats(data));
+
   useEffect(() => {
     loadQuiz().catch((e) => setError(e.response?.data?.detail || "Load failed"));
     loadResults().catch(() => {});
+    loadParticipation().catch(() => {});
+    loadParticipationStats().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -158,6 +175,16 @@ export default function AdminQuizDetail() {
   if (!quiz) return <div className="container">Loading…</div>;
 
   const missingAnswers = questions.filter((q) => q.correct_index < 0).length;
+  const attemptedCount = participation.filter((user) => user.has_attempted).length;
+  const notAttemptedCount = participation.length - attemptedCount;
+  const participationMax = Math.max(attemptedCount, notAttemptedCount, 1);
+  const stats = participationStats || {
+    total_students: participation.length,
+    attempted: attemptedCount,
+    not_attempted: notAttemptedCount,
+    period_days: statsDays,
+    daily: [],
+  };
 
   return (
     <div className="container">
@@ -306,6 +333,89 @@ export default function AdminQuizDetail() {
           </tbody>
         </table>
       )}
+
+      <section className="card participation-card">
+        <h2>Test Participation</h2>
+        <p className="muted">All registered users who gave or did not give this test.</p>
+        <div className="participation-summary">
+          <div className="participation-stat given">
+            <strong>{stats.attempted}</strong>
+            <span>Test diya</span>
+          </div>
+          <div className="participation-stat not-given">
+            <strong>{stats.not_attempted}</strong>
+            <span>Test nahi diya</span>
+          </div>
+        </div>
+
+        <div className="stats-filter-row">
+          <label htmlFor="stats-days">Filter:</label>
+          <select
+            id="stats-days"
+            value={statsDays}
+            onChange={(e) => {
+              const days = Number(e.target.value);
+              setStatsDays(days);
+              loadParticipationStats(days).catch(() => {});
+            }}
+          >
+            <option value={1}>Last 1 day</option>
+            <option value={7}>Last 7 days</option>
+            <option value={30}>Last 30 days</option>
+          </select>
+        </div>
+
+        {participation.length > 0 ? (
+          <div className="participation-chart" role="img" aria-label={`${stats.attempted} users gave the test and ${stats.not_attempted} did not`}>
+            <div className="chart-row">
+              <span className="chart-label">Test diya</span>
+              <div className="chart-track"><div className="chart-bar given" style={{ width: `${(stats.attempted / Math.max(stats.total_students, 1)) * 100}%` }} /></div>
+              <strong>{stats.attempted}</strong>
+            </div>
+            <div className="chart-row">
+              <span className="chart-label">Nahi diya</span>
+              <div className="chart-track"><div className="chart-bar not-given" style={{ width: `${(stats.not_attempted / Math.max(stats.total_students, 1)) * 100}%` }} /></div>
+              <strong>{stats.not_attempted}</strong>
+            </div>
+          </div>
+        ) : (
+          <p className="muted">No student users registered yet.</p>
+        )}
+
+        {participationStats?.daily?.length > 0 && (
+          <div className="daily-graph-card">
+            <h3>Daily participation ({stats.period_days} day{stats.period_days === 1 ? "" : "s"})</h3>
+            <div className="daily-graph">
+              {participationStats.daily.map((day) => {
+                const dayLabel = new Date(day.date).toLocaleDateString();
+                const attemptedPct = Math.round((day.attempted / Math.max(day.total_students, 1)) * 100);
+                return (
+                  <div className="daily-bar-row" key={dayLabel}>
+                    <div className="daily-bar-label">{dayLabel}</div>
+                    <div className="daily-bar-track">
+                      <div className="daily-bar attempted" style={{ width: `${attemptedPct}%` }} />
+                    </div>
+                    <div className="daily-bar-count">{day.attempted}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {participation.length > 0 && (
+          <div className="user-status-list">
+            {participation.map((user) => (
+              <div className="user-status" key={user.user_email}>
+                <span>{user.user_name} <small>{user.user_email}</small></span>
+                <span className={`badge ${user.has_attempted ? "green" : "gray"}`}>
+                  {user.has_attempted ? "Test diya" : "Test nahi diya"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {detail && (
         <div className="card">

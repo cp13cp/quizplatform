@@ -14,6 +14,13 @@ class Settings(BaseSettings):
     admin_email: str = "admin@quiz.com"
     admin_password: str = "admin123"
     cors_origins: str = "http://localhost:5173"
+    email_host: str = ""
+    email_port: int = 587
+    email_user: str = ""
+    email_password: str = ""
+    email_from: str = ""
+    email_use_tls: bool = True
+    sms_otp_expire_minutes: int = 5
 
     @property
     def cors_origin_list(self) -> list[str]:

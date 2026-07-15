@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 
 from ..database import get_db
 from ..models import (
@@ -11,6 +11,9 @@ from ..models import (
     Question,
     QuizAdminDetail,
     QuizCreate,
+    QuizParticipation,
+    QuizParticipationStats,
+    QuizParticipationStatsDay,
     QuizSummary,
     QuizUpdate,
 )
@@ -176,6 +179,88 @@ async def quiz_results(quiz_id: str, admin: dict = Depends(require_admin)):
             )
         )
     return out
+
+
+@router.get("/quizzes/{quiz_id}/participation", response_model=list[QuizParticipation])
+async def quiz_participation(quiz_id: str, admin: dict = Depends(require_admin)):
+    """List every student and whether they have submitted this quiz."""
+    db = get_db()
+    quiz = await _get_quiz(quiz_id)
+    attempted_user_ids = {
+        attempt["user_id"]
+        async for attempt in db.attempts.find(
+            {"quiz_id": quiz["_id"]}, {"user_id": 1}
+        )
+    }
+    users = db.users.find({"role": "user"}).sort("name", 1)
+    return [
+        QuizParticipation(
+            user_name=user.get("name", ""),
+            user_email=user.get("email", ""),
+            has_attempted=user["_id"] in attempted_user_ids,
+        )
+        async for user in users
+    ]
+
+
+@router.get("/quizzes/{quiz_id}/participation-stats", response_model=QuizParticipationStats)
+async def quiz_participation_stats(
+    quiz_id: str,
+    days: int = Query(7, ge=0, le=365),
+    admin: dict = Depends(require_admin),
+):
+    """Return quiz participation counts and daily breakdown for the requested window."""
+    db = get_db()
+    quiz = await _get_quiz(quiz_id)
+    total_students = await db.users.count_documents({"role": "user"})
+
+    period_filter: dict = {"quiz_id": quiz["_id"]}
+    daily: list[QuizParticipationStatsDay] = []
+    if days > 0:
+        today = datetime.now(timezone.utc).date()
+        start_date = today - timedelta(days=days - 1)
+        start_dt = datetime(
+            start_date.year,
+            start_date.month,
+            start_date.day,
+            tzinfo=timezone.utc,
+        )
+        period_filter["submitted_at"] = {"$gte": start_dt}
+
+    attempted_user_ids = set()
+    user_ids_by_date: dict[date, set] = {}
+    async for attempt in db.attempts.find(period_filter, {"user_id": 1, "submitted_at": 1}):
+        attempted_user_ids.add(attempt["user_id"])
+        if days > 0 and attempt.get("submitted_at") is not None:
+            attempt_date = attempt["submitted_at"].date()
+            if attempt_date >= start_date:
+                user_ids_by_date.setdefault(attempt_date, set()).add(attempt["user_id"])
+
+    if days > 0:
+        for offset in range(days):
+            day_date = start_date + timedelta(days=offset)
+            day_attempted = len(user_ids_by_date.get(day_date, set()))
+            daily.append(
+                QuizParticipationStatsDay(
+                    date=datetime(
+                        day_date.year,
+                        day_date.month,
+                        day_date.day,
+                        tzinfo=timezone.utc,
+                    ),
+                    attempted=day_attempted,
+                    not_attempted=max(total_students - day_attempted, 0),
+                    total_students=total_students,
+                )
+            )
+
+    return QuizParticipationStats(
+        total_students=total_students,
+        attempted=len(attempted_user_ids),
+        not_attempted=max(total_students - len(attempted_user_ids), 0),
+        period_days=days,
+        daily=daily,
+    )
 
 
 @router.get("/attempts/{attempt_id}", response_model=AttemptResult)
