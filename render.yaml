@@ -27,3 +27,15 @@ services:
         sync: false # set your admin password
       - key: CORS_ORIGINS
         sync: false # your deployed frontend URL, e.g. https://xxxx.netlify.app
+      - key: EMAIL_HOST
+        sync: false # e.g. smtp.gmail.com
+      - key: EMAIL_PORT
+        sync: false # e.g. 587
+      - key: EMAIL_USER
+        sync: false # your SMTP username or email
+      - key: EMAIL_PASSWORD
+        sync: false # your SMTP password or app password
+      - key: EMAIL_FROM
+        sync: false # sender email address
+      - key: EMAIL_USE_TLS
+        value: "true"

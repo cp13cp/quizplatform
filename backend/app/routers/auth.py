@@ -1,3 +1,4 @@
+import logging
 import random
 import smtplib
 from email.message import EmailMessage
@@ -92,7 +93,8 @@ async def send_otp(payload: OTPRequest):
             f"Hello,\n\nUse this OTP to complete your Quiz Platform request.\n\nOTP: {code}\n\nThis code expires in {settings.sms_otp_expire_minutes} minutes.\n\nIf you did not request this, please ignore this email.\n",
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to send OTP: {exc}")
+        logging.exception("OTP send failed")
+        raise HTTPException(status_code=500, detail="Failed to send OTP. Check backend logs.")
     return {"detail": "OTP sent"}
 
 
