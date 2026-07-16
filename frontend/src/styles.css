@@ -202,6 +202,37 @@ input[type="radio"] {
   font-size: 0.95rem;
 }
 
+/* Category switcher */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-items: center;
+  margin: 0.6rem 0 1rem;
+}
+.filter-row input {
+  max-width: 320px;
+}
+.category-switcher {
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+.category-chip {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.category-chip.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
 /* Loading state */
 .loading-card {
   background: var(--card);

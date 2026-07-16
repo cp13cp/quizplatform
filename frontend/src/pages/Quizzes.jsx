@@ -48,6 +48,8 @@ export default function Quizzes() {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [miniQuiz, setMiniQuiz] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     setMiniQuiz(buildMiniQuiz());
@@ -107,6 +109,20 @@ export default function Quizzes() {
     { label: "Best Score", value: `${bestScore}%`, icon: "🏆" },
   ];
 
+  const getQuizCategory = (quiz) => {
+    const text = `${quiz.title || ""} ${quiz.description || ""}`.toLowerCase();
+    return text.includes("aptitude") ? "aptitude" : "technical";
+  };
+
+  const filteredQuizzes = quizzes.filter((quiz) => {
+    const haystack = `${quiz.title || ""} ${quiz.description || ""}`.toLowerCase();
+    const matchesSearch = haystack.includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "all" ? true : getQuizCategory(quiz) === selectedCategory;
+
+    return matchesSearch && matchesCategory;
+  });
+
   return (
     <div className="container">
       <h1>Dashboard</h1>
@@ -123,9 +139,40 @@ export default function Quizzes() {
       </div>
 
       <h1>Available Quizzes</h1>
+      <div className="filter-row">
+        <input
+          type="text"
+          placeholder="Search by topic, title, or keyword"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <div className="category-switcher">
+          <button
+            className={`category-chip ${selectedCategory === "all" ? "active" : ""}`}
+            onClick={() => setSelectedCategory("all")}
+          >
+            All
+          </button>
+          <button
+            className={`category-chip ${selectedCategory === "technical" ? "active" : ""}`}
+            onClick={() => setSelectedCategory("technical")}
+          >
+            Technical
+          </button>
+          <button
+            className={`category-chip ${selectedCategory === "aptitude" ? "active" : ""}`}
+            onClick={() => setSelectedCategory("aptitude")}
+          >
+            Aptitude
+          </button>
+        </div>
+      </div>
       {quizzes.length === 0 && <p className="muted">No published quizzes yet.</p>}
+      {filteredQuizzes.length === 0 && quizzes.length > 0 && (
+        <p className="muted">No quizzes available in this category right now.</p>
+      )}
       <div className="grid">
-        {quizzes.map((q) => (
+        {filteredQuizzes.map((q) => (
           <div className="card" key={q.id}>
             <h3>{q.title}</h3>
             <p className="muted">{q.description || "—"}</p>
