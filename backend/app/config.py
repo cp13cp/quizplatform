@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     email_password: str = ""
     email_from: str = ""
     email_use_tls: bool = True
+    email_timeout: int = 10
     sms_otp_expire_minutes: int = 5
 
     @property

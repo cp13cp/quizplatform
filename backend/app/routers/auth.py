@@ -1,6 +1,7 @@
 import logging
 import random
 import smtplib
+import ssl
 from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
 
@@ -51,11 +52,28 @@ def _send_email(recipient: str, subject: str, body: str) -> None:
     message["To"] = recipient
     message.set_content(body)
 
-    with smtplib.SMTP(settings.email_host, settings.email_port) as smtp:
-        if settings.email_use_tls:
-            smtp.starttls()
-        smtp.login(settings.email_user, settings.email_password)
-        smtp.send_message(message)
+    if settings.email_use_tls and settings.email_port == 465:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(
+            settings.email_host,
+            settings.email_port,
+            timeout=settings.email_timeout,
+            context=context,
+        ) as smtp:
+            smtp.login(settings.email_user, settings.email_password)
+            smtp.send_message(message)
+    else:
+        with smtplib.SMTP(
+            settings.email_host,
+            settings.email_port,
+            timeout=settings.email_timeout,
+        ) as smtp:
+            smtp.ehlo()
+            if settings.email_use_tls:
+                smtp.starttls()
+                smtp.ehlo()
+            smtp.login(settings.email_user, settings.email_password)
+            smtp.send_message(message)
 
 
 @router.post("/send-otp")
@@ -93,7 +111,7 @@ async def send_otp(payload: OTPRequest):
             f"Hello,\n\nUse this OTP to complete your Quiz Platform request.\n\nOTP: {code}\n\nThis code expires in {settings.sms_otp_expire_minutes} minutes.\n\nIf you did not request this, please ignore this email.\n",
         )
     except Exception as exc:
-        logging.exception("OTP send failed")
+        logging.exception(exc)
         raise HTTPException(status_code=500, detail="Failed to send OTP. Check backend logs.")
     return {"detail": "OTP sent"}
 
