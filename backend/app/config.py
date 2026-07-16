@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     email_from: str = ""
     email_use_tls: bool = True
     email_timeout: int = 10
+    sendgrid_api_key: str = ""
     sms_otp_expire_minutes: int = 5
 
     @property

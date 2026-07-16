@@ -39,3 +39,5 @@ services:
         sync: false # sender email address
       - key: EMAIL_USE_TLS
         value: "true"
+      - key: SENDGRID_API_KEY
+        sync: false # your SendGrid API key

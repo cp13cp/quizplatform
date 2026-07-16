@@ -7,6 +7,8 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 from ..config import get_settings
 from ..database import get_db
@@ -37,6 +39,21 @@ def _generate_otp() -> str:
 
 def _send_email(recipient: str, subject: str, body: str) -> None:
     settings = get_settings()
+    if settings.sendgrid_api_key:
+        message = Mail(
+            from_email=settings.email_from,
+            to_emails=recipient,
+            subject=subject,
+            plain_text_content=body,
+        )
+        client = SendGridAPIClient(settings.sendgrid_api_key)
+        response = client.send(message)
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"SendGrid error {response.status_code}: {response.body}"
+            )
+        return
+
     if not (
         settings.email_host
         and settings.email_port
@@ -80,15 +97,18 @@ def _send_email(recipient: str, subject: str, body: str) -> None:
 async def send_otp(payload: OTPRequest):
     settings = get_settings()
     if not (
-        settings.email_host
-        and settings.email_port
-        and settings.email_user
-        and settings.email_password
-        and settings.email_from
+        settings.sendgrid_api_key
+        or (
+            settings.email_host
+            and settings.email_port
+            and settings.email_user
+            and settings.email_password
+            and settings.email_from
+        )
     ):
         raise HTTPException(
             status_code=500,
-            detail="Email OTP service is not configured. Set email settings in backend .env",
+            detail="Email OTP service is not configured. Set SendGrid or SMTP email settings in backend .env",
         )
     email = payload.email.lower()
     code = _generate_otp()
