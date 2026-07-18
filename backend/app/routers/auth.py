@@ -1,4 +1,5 @@
 import hashlib
+import json
 import logging
 import secrets
 import smtplib
@@ -6,6 +7,7 @@ import ssl
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -42,26 +44,55 @@ def _user_out(user: dict) -> UserOut:
 
 def _send_reset_email(recipient: str, reset_url: str) -> None:
     settings = get_settings()
-    if not all(
-        [
-            settings.email_host,
-            settings.email_user,
-            settings.email_password,
-            settings.email_from,
-        ]
-    ):
-        raise RuntimeError("Email service is not configured")
+    if not settings.email_from:
+        raise RuntimeError("EMAIL_FROM is not configured")
 
-    message = EmailMessage()
-    message["Subject"] = "Reset your Quiz Platform password"
-    message["From"] = settings.email_from
-    message["To"] = recipient
-    message.set_content(
+    subject = "Reset your Quiz Platform password"
+    body = (
         "A password reset was requested for your account.\n\n"
         f"Reset your password: {reset_url}\n\n"
         f"This link expires in {settings.password_reset_expire_minutes} minutes. "
         "If you did not request this, you can ignore this email."
     )
+
+    # Render cannot reach Gmail's SMTP port, so prefer SendGrid's HTTPS API.
+    if settings.sendgrid_api_key:
+        payload = json.dumps(
+            {
+                "personalizations": [{"to": [{"email": recipient}]}],
+                "from": {"email": settings.email_from},
+                "subject": subject,
+                "content": [{"type": "text/plain", "value": body}],
+            }
+        ).encode()
+        request = Request(
+            "https://api.sendgrid.com/v3/mail/send",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {settings.sendgrid_api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urlopen(request, timeout=settings.email_timeout) as response:
+            if response.status not in (200, 202):
+                raise RuntimeError(f"SendGrid returned status {response.status}")
+        return
+
+    if not all(
+        [
+            settings.email_host,
+            settings.email_user,
+            settings.email_password,
+        ]
+    ):
+        raise RuntimeError("Email service is not configured")
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = settings.email_from
+    message["To"] = recipient
+    message.set_content(body)
 
     if settings.email_use_tls and settings.email_port == 465:
         context = ssl.create_default_context()
