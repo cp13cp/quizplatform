@@ -15,6 +15,7 @@ export default function Navbar() {
       <Link to="/" className="brand">
         📝 QuizPlatform
       </Link>
+      
       <div className="nav-links">
         {user ? (
           <>
