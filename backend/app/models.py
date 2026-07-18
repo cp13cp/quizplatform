@@ -11,24 +11,6 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str = Field(min_length=4)
     confirm_password: str = Field(min_length=4)
-    otp: str = Field(..., min_length=4, max_length=8)
-
-    @model_validator(mode="after")
-    def passwords_match(self):
-        if self.password != self.confirm_password:
-            raise ValueError("Passwords do not match")
-        return self
-
-
-class OTPRequest(BaseModel):
-    email: EmailStr
-
-
-class ResetPassword(BaseModel):
-    email: EmailStr
-    otp: str = Field(..., min_length=4, max_length=8)
-    password: str = Field(min_length=4)
-    confirm_password: str = Field(min_length=4)
 
     @model_validator(mode="after")
     def passwords_match(self):
@@ -40,6 +22,22 @@ class ResetPassword(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str = Field(min_length=32)
+    password: str = Field(min_length=4)
+    confirm_password: str = Field(min_length=4)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        return self
 
 
 class UserOut(BaseModel):

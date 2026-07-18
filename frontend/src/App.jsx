@@ -11,6 +11,7 @@ import Notes from "./pages/Notes.jsx";
 import Quizzes from "./pages/Quizzes.jsx";
 import Register from "./pages/Register.jsx";
 import Result from "./pages/Result.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 import TakeQuiz from "./pages/TakeQuiz.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
 
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route
           path="/quizzes"

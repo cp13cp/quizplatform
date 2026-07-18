@@ -1,18 +1,24 @@
-import logging
-import random
+import hashlib
+import secrets
 import smtplib
 import ssl
-from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
 
 from ..config import get_settings
 from ..database import get_db
-from ..models import OTPRequest, ResetPassword, TokenOut, UserLogin, UserOut, UserRegister
+from ..models import (
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    TokenOut,
+    UserLogin,
+    UserOut,
+    UserRegister,
+)
 from ..security import (
     create_access_token,
     get_current_user,
@@ -33,41 +39,28 @@ def _user_out(user: dict) -> UserOut:
     )
 
 
-def _generate_otp() -> str:
-    return f"{random.randint(100000, 999999)}"
-
-
-def _send_email(recipient: str, subject: str, body: str) -> None:
+def _send_reset_email(recipient: str, reset_url: str) -> None:
     settings = get_settings()
-    if settings.sendgrid_api_key:
-        message = Mail(
-            from_email=settings.email_from,
-            to_emails=recipient,
-            subject=subject,
-            plain_text_content=body,
-        )
-        client = SendGridAPIClient(settings.sendgrid_api_key)
-        response = client.send(message)
-        if response.status_code >= 400:
-            raise RuntimeError(
-                f"SendGrid error {response.status_code}: {response.body}"
-            )
-        return
-
-    if not (
-        settings.email_host
-        and settings.email_port
-        and settings.email_user
-        and settings.email_password
-        and settings.email_from
+    if not all(
+        [
+            settings.email_host,
+            settings.email_user,
+            settings.email_password,
+            settings.email_from,
+        ]
     ):
         raise RuntimeError("Email service is not configured")
 
     message = EmailMessage()
-    message["Subject"] = subject
+    message["Subject"] = "Reset your Quiz Platform password"
     message["From"] = settings.email_from
     message["To"] = recipient
-    message.set_content(body)
+    message.set_content(
+        "A password reset was requested for your account.\n\n"
+        f"Reset your password: {reset_url}\n\n"
+        f"This link expires in {settings.password_reset_expire_minutes} minutes. "
+        "If you did not request this, you can ignore this email."
+    )
 
     if settings.email_use_tls and settings.email_port == 465:
         context = ssl.create_default_context()
@@ -79,61 +72,19 @@ def _send_email(recipient: str, subject: str, body: str) -> None:
         ) as smtp:
             smtp.login(settings.email_user, settings.email_password)
             smtp.send_message(message)
-    else:
-        with smtplib.SMTP(
-            settings.email_host,
-            settings.email_port,
-            timeout=settings.email_timeout,
-        ) as smtp:
+        return
+
+    with smtplib.SMTP(
+        settings.email_host,
+        settings.email_port,
+        timeout=settings.email_timeout,
+    ) as smtp:
+        smtp.ehlo()
+        if settings.email_use_tls:
+            smtp.starttls(context=ssl.create_default_context())
             smtp.ehlo()
-            if settings.email_use_tls:
-                smtp.starttls()
-                smtp.ehlo()
-            smtp.login(settings.email_user, settings.email_password)
-            smtp.send_message(message)
-
-
-@router.post("/send-otp")
-async def send_otp(payload: OTPRequest):
-    settings = get_settings()
-    if not (
-        settings.sendgrid_api_key
-        or (
-            settings.email_host
-            and settings.email_port
-            and settings.email_user
-            and settings.email_password
-            and settings.email_from
-        )
-    ):
-        raise HTTPException(
-            status_code=500,
-            detail="Email OTP service is not configured. Set SendGrid or SMTP email settings in backend .env",
-        )
-    email = payload.email.lower()
-    code = _generate_otp()
-    now = datetime.now(timezone.utc)
-    expires_at = now + timedelta(minutes=settings.sms_otp_expire_minutes)
-    db = get_db()
-    await db.otps.insert_one(
-        {
-            "email": email,
-            "code": code,
-            "created_at": now,
-            "expires_at": expires_at,
-            "used": False,
-        }
-    )
-    try:
-        _send_email(
-            email,
-            "Quiz Platform OTP Verification",
-            f"Hello,\n\nUse this OTP to complete your Quiz Platform request.\n\nOTP: {code}\n\nThis code expires in {settings.sms_otp_expire_minutes} minutes.\n\nIf you did not request this, please ignore this email.\n",
-        )
-    except Exception as exc:
-        logging.exception(exc)
-        raise HTTPException(status_code=500, detail="Failed to send OTP. Check backend logs.")
-    return {"detail": "OTP sent"}
+        smtp.login(settings.email_user, settings.email_password)
+        smtp.send_message(message)
 
 
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
@@ -143,18 +94,7 @@ async def register(payload: UserRegister):
     existing = await db.users.find_one({"email": email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-    now = datetime.now(timezone.utc)
-    otp_doc = await db.otps.find_one(
-        {
-            "email": email,
-            "code": payload.otp,
-            "used": False,
-            "expires_at": {"$gte": now},
-        }
-    )
-    if not otp_doc:
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
-    await db.otps.update_one({"_id": otp_doc["_id"]}, {"$set": {"used": True}})
+
     doc = {
         "name": payload.name,
         "email": email,
@@ -167,30 +107,69 @@ async def register(payload: UserRegister):
     return TokenOut(access_token=token, user=_user_out(doc))
 
 
-@router.post("/reset-password")
-async def reset_password(payload: ResetPassword):
+@router.post("/forgot-password")
+async def forgot_password(payload: PasswordResetRequest):
+    """Send a one-time password-reset link without revealing whether the email exists."""
     db = get_db()
-    email = payload.email.lower()
-    user = await db.users.find_one({"email": email})
+    user = await db.users.find_one({"email": payload.email.lower()})
+    response = {"detail": "If that email is registered, a reset link has been sent."}
     if not user:
-        raise HTTPException(status_code=400, detail="Invalid email or OTP")
+        return response
+
+    settings = get_settings()
+    if not all(
+        [
+            settings.email_host,
+            settings.email_user,
+            settings.email_password,
+            settings.email_from,
+        ]
+    ):
+        raise HTTPException(status_code=500, detail="Email service is not configured")
+
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
     now = datetime.now(timezone.utc)
-    otp_doc = await db.otps.find_one(
+    expires_at = now + timedelta(minutes=settings.password_reset_expire_minutes)
+    await db.password_reset_tokens.delete_many({"user_id": user["_id"]})
+    await db.password_reset_tokens.insert_one(
         {
-            "email": email,
-            "code": payload.otp,
+            "user_id": user["_id"],
+            "token_hash": token_hash,
+            "expires_at": expires_at,
             "used": False,
-            "expires_at": {"$gte": now},
+            "created_at": now,
         }
     )
-    if not otp_doc:
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    reset_url = f"{settings.frontend_url.rstrip('/')}/reset-password?{urlencode({'token': token})}"
+    try:
+        _send_reset_email(user["email"], reset_url)
+    except Exception as exc:
+        await db.password_reset_tokens.delete_one({"token_hash": token_hash})
+        raise HTTPException(status_code=500, detail="Failed to send reset email") from exc
+    return response
+
+
+@router.post("/reset-password")
+async def reset_password(payload: PasswordResetConfirm):
+    db = get_db()
+    token_hash = hashlib.sha256(payload.token.encode()).hexdigest()
+    token_doc = await db.password_reset_tokens.find_one_and_update(
+        {
+            "token_hash": token_hash,
+            "used": False,
+            "expires_at": {"$gte": datetime.now(timezone.utc)},
+        },
+        {"$set": {"used": True}},
+    )
+    if not token_doc:
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired")
+
     await db.users.update_one(
-        {"_id": user["_id"]},
+        {"_id": token_doc["user_id"]},
         {"$set": {"password": hash_password(payload.password)}},
     )
-    await db.otps.update_one({"_id": otp_doc["_id"]}, {"$set": {"used": True}})
-    return {"detail": "Password has been reset"}
+    return {"detail": "Password has been reset. Please log in."}
 
 
 @router.post("/login", response_model=TokenOut)

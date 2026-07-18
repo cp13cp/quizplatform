@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     admin_email: str = "admin@quiz.com"
     admin_password: str = "admin123"
     cors_origins: str = "http://localhost:5173"
+    frontend_url: str = "http://localhost:5173"
     email_host: str = ""
     email_port: int = 587
     email_user: str = ""
@@ -21,8 +22,7 @@ class Settings(BaseSettings):
     email_from: str = ""
     email_use_tls: bool = True
     email_timeout: int = 10
-    sendgrid_api_key: str = ""
-    sms_otp_expire_minutes: int = 5
+    password_reset_expire_minutes: int = 30
 
     @property
     def cors_origin_list(self) -> list[str]:

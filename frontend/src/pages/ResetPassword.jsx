@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.jsx";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import api from "../api";
 
-export default function Register() {
-  const { register } = useAuth();
+export default function ResetPassword() {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token") || "";
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -15,16 +14,24 @@ export default function Register() {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    if (!token) {
+      setError("This reset link is invalid.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
     setBusy(true);
     try {
-      if (password !== confirmPassword) {
-        setError("Passwords do not match");
-      } else {
-        await register(name, email, password, confirmPassword);
-        navigate("/quizzes");
-      }
+      await api.post("/auth/reset-password", {
+        token,
+        password,
+        confirm_password: confirmPassword,
+      });
+      navigate("/login", { state: { message: "Password reset successfully. Please log in." } });
     } catch (err) {
-      setError(err.response?.data?.detail || "Registration failed");
+      setError(err.response?.data?.detail || "Could not reset password");
     } finally {
       setBusy(false);
     }
@@ -33,18 +40,9 @@ export default function Register() {
   return (
     <div className="container narrow">
       <div className="card">
-        <h2>Create account</h2>
+        <h2>Set New Password</h2>
         <form onSubmit={submit}>
-          <label>Name</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} required />
-          <label>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <label>Password</label>
+          <label>New password</label>
           <input
             type="password"
             value={password}
@@ -52,7 +50,7 @@ export default function Register() {
             minLength={4}
             required
           />
-          <label>Confirm password</label>
+          <label>Confirm new password</label>
           <input
             type="password"
             value={confirmPassword}
@@ -61,12 +59,12 @@ export default function Register() {
             required
           />
           {error && <p className="error">{error}</p>}
-          <button className="btn" disabled={busy}>
-            {busy ? "Creating..." : "Register"}
+          <button className="btn" disabled={busy || !token}>
+            {busy ? "Resetting..." : "Reset password"}
           </button>
         </form>
         <p className="muted">
-          Have an account? <Link to="/login">Login</Link>
+          <Link to="/login">Back to login</Link>
         </p>
       </div>
     </div>
