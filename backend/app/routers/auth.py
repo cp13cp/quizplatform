@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import secrets
 import smtplib
 import ssl
@@ -146,6 +147,7 @@ async def forgot_password(payload: PasswordResetRequest):
         _send_reset_email(user["email"], reset_url)
     except Exception as exc:
         await db.password_reset_tokens.delete_one({"token_hash": token_hash})
+        logging.exception("Failed to send password reset email")
         raise HTTPException(status_code=500, detail="Failed to send reset email") from exc
     return response
 
