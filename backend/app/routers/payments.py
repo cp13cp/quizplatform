@@ -17,14 +17,33 @@ from ..security import get_current_user
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
+def _normalize_expiry(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        try:
+            dt = datetime.fromisoformat(cleaned.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+    return None
+
+
 def _access_status(user: dict) -> AccessStatus:
     settings = get_settings()
-    payment_expiry = user.get("access_expires_at")
-    free_expiry = user.get("free_access_expires_at")
-    expires_at = max(
-        (expiry for expiry in (payment_expiry, free_expiry) if expiry is not None),
-        default=None,
-    )
+    payment_expiry = _normalize_expiry(user.get("access_expires_at"))
+    free_expiry = _normalize_expiry(user.get("free_access_expires_at"))
+    expires_at = None
+    for expiry in (payment_expiry, free_expiry):
+        if expiry is None:
+            continue
+        expires_at = expiry if expires_at is None or expiry > expires_at else expires_at
+
     active = user.get("role") == "admin" or (
         expires_at is not None and expires_at > datetime.now(timezone.utc)
     )

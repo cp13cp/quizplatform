@@ -54,16 +54,48 @@ export default function Quizzes() {
   const [paymentError, setPaymentError] = useState("");
   const [paying, setPaying] = useState(false);
 
+  const loadAccessStatus = async () => {
+    try {
+      const { data } = await api.get("/payments/status");
+      setAccess(data);
+    } catch {
+      setPaymentError("Could not check test access. Please refresh or contact support.");
+    }
+  };
+
   useEffect(() => {
     setMiniQuiz(buildMiniQuiz());
 
-    Promise.all([api.get("/quizzes"), api.get("/quizzes/attempts/me"), api.get("/payments/status")])
-      .then(([q, a, status]) => {
-        setQuizzes(q.data);
-        setAttempts(a.data);
-        setAccess(status.data);
-      })
-      .finally(() => setLoading(false));
+    const load = async () => {
+      try {
+        const [quizzesResult, attemptsResult, accessResult] = await Promise.allSettled([
+          api.get("/quizzes"),
+          api.get("/quizzes/attempts/me"),
+          api.get("/payments/status"),
+        ]);
+
+        if (quizzesResult.status === "fulfilled") setQuizzes(quizzesResult.value.data);
+        if (attemptsResult.status === "fulfilled") setAttempts(attemptsResult.value.data);
+        if (accessResult.status === "fulfilled") setAccess(accessResult.value.data);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+    const refreshAccess = setInterval(loadAccessStatus, 15000);
+    const onVisible = () => {
+      if (!document.hidden) {
+        loadAccessStatus();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(refreshAccess);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   const startPayment = async () => {
