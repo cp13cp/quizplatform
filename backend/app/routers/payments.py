@@ -25,8 +25,9 @@ def _access_status(user: dict) -> AccessStatus:
         (expiry for expiry in (payment_expiry, free_expiry) if expiry is not None),
         default=None,
     )
-    # Temporary free-access mode: all quizzes are available without a paid lock.
-    active = True
+    active = user.get("role") == "admin" or (
+        expires_at is not None and expires_at > datetime.now(timezone.utc)
+    )
     return AccessStatus(
         active=active,
         expires_at=expires_at,
@@ -36,7 +37,11 @@ def _access_status(user: dict) -> AccessStatus:
 
 
 async def require_active_access(user: dict = Depends(get_current_user)) -> dict:
-    # Temporarily keep all quiz access free for all users.
+    if not _access_status(user).active:
+        raise HTTPException(
+            status_code=402,
+            detail="Test access is locked. Pay ₹199 to unlock it for 30 days.",
+        )
     return user
 
 

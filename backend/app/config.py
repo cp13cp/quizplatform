@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     password_reset_expire_minutes: int = 30
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
-    subscription_price_paise: int = 9900
+    subscription_price_paise: int = 19900
     subscription_days: int = 30
 
     @property

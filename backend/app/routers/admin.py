@@ -62,14 +62,17 @@ async def grant_free_access(
     expires_at = start + timedelta(days=payload.days)
     await db.users.update_one(
         {"_id": user["_id"]},
-        {"$set": {"free_access_expires_at": expires_at, "access_granted_by": admin["_id"]}},
+        {
+            "$set": {
+                "access_expires_at": expires_at,
+                "free_access_expires_at": expires_at,
+                "access_granted_by": admin["_id"],
+            }
+        },
     )
     return AdminAccessUser(
         id=str(user["_id"]), name=user.get("name", ""), email=user["email"],
-        access_expires_at=max(
-            (expiry for expiry in (user.get("access_expires_at"), expires_at) if expiry is not None),
-            default=None,
-        ),
+        access_expires_at=expires_at,
         free_access_expires_at=expires_at,
     )
 
@@ -84,7 +87,13 @@ async def revoke_free_access(user_id: str, admin: dict = Depends(require_admin))
         raise HTTPException(status_code=404, detail="Student not found")
     result = await db.users.update_one(
         {"_id": oid, "role": "user"},
-        {"$unset": {"free_access_expires_at": "", "access_granted_by": ""}},
+        {
+            "$unset": {
+                "access_expires_at": "",
+                "free_access_expires_at": "",
+                "access_granted_by": "",
+            }
+        },
     )
     if not result.matched_count:
         raise HTTPException(status_code=404, detail="Student not found")

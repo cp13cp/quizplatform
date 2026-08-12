@@ -192,15 +192,12 @@ export default function Quizzes() {
             <p>Pay ₹{access.price_rupees} to unlock every test for {access.duration_days} days.</p>
           </div>
           <button className="btn" onClick={startPayment} disabled={paying}>
-            {paying ? "Opening payment…" : "Unlock for ₹99"}
+            {paying ? "Opening payment…" : "Unlock for ₹199"}
           </button>
         </div>
       )}
       {access?.active && access.expires_at && (
         <div className="banner success">Test access active until {new Date(access.expires_at).toLocaleDateString()}.</div>
-      )}
-      {access?.active && !access.expires_at && (
-        <div className="banner success">🎉 Quizzes are free right now — all tests are unlocked.</div>
       )}
       {paymentError && <p className="error">{paymentError}</p>}
       <div className="filter-row">
@@ -248,7 +245,7 @@ export default function Quizzes() {
               {access?.active ? (
                 <Link className="btn" to={`/quizzes/${q.id}`}>Start Quiz</Link>
               ) : (
-                <button className="btn" onClick={startPayment} disabled={paying}>🔒 Unlock Test</button>
+                <button className="btn" onClick={startPayment} disabled={paying}>🔒 Unlock Test for ₹199</button>
               )}
               <Link className="btn-link" to={`/leaderboard/${q.id}`}>
                 🏆 Leaderboard
