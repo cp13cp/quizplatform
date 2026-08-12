@@ -34,10 +34,12 @@ def _as_bool(value) -> bool:
 
 def _serialize(doc: dict) -> dict:
     meta = doc.get("metadata", {}) or {}
+    category = (meta.get("category") or "").strip()
     return {
         "id": str(doc["_id"]),
         "title": meta.get("title") or doc.get("filename", "Untitled"),
         "description": meta.get("description", ""),
+        "category": category,
         "filename": doc.get("filename", "file"),
         "size": doc.get("length", 0),
         "content_type": meta.get("content_type", "application/octet-stream"),
@@ -52,6 +54,7 @@ async def upload_note(
     file: UploadFile = File(...),
     title: str = Form(...),
     description: str = Form(""),
+    category: str = Form(""),
     is_locked: bool = Form(False),
     price_rupees: int = Form(0),
     admin: dict = Depends(require_admin),
@@ -68,6 +71,7 @@ async def upload_note(
         metadata={
             "title": title,
             "description": description,
+            "category": (category or "").strip(),
             "content_type": file.content_type or "application/octet-stream",
             "uploaded_by": str(admin["_id"]),
             "is_locked": bool(is_locked),
@@ -79,9 +83,19 @@ async def upload_note(
 
 
 @router.get("/notes")
-async def list_notes(user: dict = Depends(get_current_user)):
+async def list_notes(user: dict = Depends(get_current_user), search: str | None = None):
     db = get_db()
-    cursor = db[FILES_COLLECTION].find().sort("uploadDate", -1)
+    query = {}
+    if search:
+        needle = search.strip()
+        if needle:
+            query = {"$or": [
+                {"filename": {"$regex": needle, "$options": "i"}},
+                {"metadata.title": {"$regex": needle, "$options": "i"}},
+                {"metadata.description": {"$regex": needle, "$options": "i"}},
+                {"metadata.category": {"$regex": needle, "$options": "i"}},
+            ]}
+    cursor = db[FILES_COLLECTION].find(query).sort("uploadDate", -1)
     return [_serialize(doc) async for doc in cursor]
 
 
@@ -143,6 +157,8 @@ async def update_note(note_id: str, payload: NoteUpdate, admin: dict = Depends(r
         update_meta["title"] = payload.title
     if payload.description is not None:
         update_meta["description"] = payload.description
+    if payload.category is not None:
+        update_meta["category"] = (payload.category or "").strip()
     if payload.is_locked is not None:
         update_meta["is_locked"] = payload.is_locked
     if payload.price_rupees is not None:
@@ -157,6 +173,7 @@ async def update_note(note_id: str, payload: NoteUpdate, admin: dict = Depends(r
         id=str(updated["_id"]),
         title=updated_meta.get("title") or updated.get("filename", "Untitled"),
         description=updated_meta.get("description", ""),
+        category=(updated_meta.get("category") or "").strip(),
         filename=updated.get("filename", "file"),
         size=updated.get("length", 0),
         content_type=updated_meta.get("content_type", "application/octet-stream"),

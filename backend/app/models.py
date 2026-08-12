@@ -141,6 +141,7 @@ class QuizAdminDetail(QuizSummary):
 class NoteUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
+    category: str | None = None
     is_locked: bool | None = None
     price_rupees: int | None = Field(default=None, ge=0)
 
@@ -149,6 +150,7 @@ class NoteSummary(BaseModel):
     id: str
     title: str
     description: str
+    category: str = ""
     filename: str
     size: int
     content_type: str

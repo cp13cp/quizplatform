@@ -16,9 +16,11 @@ export default function Notes() {
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
   const [file, setFile] = useState(null);
   const [isLocked, setIsLocked] = useState(false);
   const [priceRupees, setPriceRupees] = useState(0);
+  const [search, setSearch] = useState("");
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [busy, setBusy] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
@@ -50,6 +52,7 @@ export default function Notes() {
   const resetForm = (target) => {
     setTitle("");
     setDescription("");
+    setCategory("");
     setFile(null);
     setIsLocked(false);
     setPriceRupees(0);
@@ -70,6 +73,7 @@ export default function Notes() {
         await api.patch(`/admin/notes/${editingNoteId}`, {
           title,
           description,
+          category,
           is_locked: isLocked,
           price_rupees: Number(priceRupees) || 0,
         });
@@ -79,6 +83,7 @@ export default function Notes() {
         form.append("file", file);
         form.append("title", title);
         form.append("description", description);
+        form.append("category", category);
         form.append("is_locked", String(isLocked));
         form.append("price_rupees", String(Number(priceRupees) || 0));
         await api.post("/admin/notes", form);
@@ -172,6 +177,7 @@ export default function Notes() {
     setEditingNoteId(note.id);
     setTitle(note.title);
     setDescription(note.description || "");
+    setCategory(note.category || "");
     setIsLocked(Boolean(note.is_locked));
     setPriceRupees(Number(note.price_rupees || 0));
     setError("");
@@ -188,9 +194,59 @@ export default function Notes() {
     load();
   };
 
+  const categories = [...new Set(notes.map((n) => n.category).filter(Boolean))].sort();
+
+  const filteredNotes = notes.filter((n) => {
+    const q = search.trim().toLowerCase();
+    const matchesQuery = !q || [n.title, n.description, n.category, n.filename]
+      .join(" ")
+      .toLowerCase()
+      .includes(q);
+    const matchesCategory = !search || !search.trim() || !categories.includes(search.trim()) || n.category === search.trim();
+    return matchesQuery && matchesCategory;
+  });
+
+  const handleCategoryClick = (categoryName) => {
+    setSearch(categoryName);
+  };
+
   return (
     <div className="container">
       <h1>Study Notes</h1>
+
+      {!isAdmin && (
+        <div className="card" style={{ marginBottom: "1rem" }}>
+          <label>Search notes or subject</label>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by title, category or keyword"
+          />
+          {categories.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem" }}>
+              <button
+                type="button"
+                className="btn btn-link"
+                onClick={() => setSearch("")}
+                style={{ padding: "0.35rem 0.7rem" }}
+              >
+                All
+              </button>
+              {categories.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className="btn btn-link"
+                  onClick={() => handleCategoryClick(item)}
+                  style={{ padding: "0.35rem 0.7rem" }}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {isAdmin && (
         <div className="card">
@@ -205,6 +261,22 @@ export default function Notes() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+            <label>Subject / Category</label>
+            <input
+              list="note-subjects"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="e.g. Mathematics, Physics, Biology"
+            />
+            <datalist id="note-subjects">
+              <option value="Mathematics" />
+              <option value="Physics" />
+              <option value="Chemistry" />
+              <option value="Biology" />
+              <option value="Computer Science" />
+              <option value="English" />
+              <option value="General" />
+            </datalist>
             {!editingNoteId && (
               <>
                 <label>File (PDF, doc, image, anything)</label>
@@ -245,13 +317,23 @@ export default function Notes() {
 
       {loading ? (
         <p>Loading…</p>
-      ) : notes.length === 0 ? (
-        <p className="muted">No notes uploaded yet.</p>
+      ) : filteredNotes.length === 0 ? (
+        <p className="muted">No notes found for this search.</p>
       ) : (
         <div className="grid">
-          {notes.map((n) => (
+          {filteredNotes.map((n) => (
             <div className="card" key={n.id}>
               <h3>📄 {n.title}</h3>
+              {n.category && (
+                <button
+                  type="button"
+                  className="btn btn-link"
+                  onClick={() => handleCategoryClick(n.category)}
+                  style={{ padding: 0, marginBottom: "0.5rem" }}
+                >
+                  <p className="muted" style={{ margin: 0 }}>📚 {n.category}</p>
+                </button>
+              )}
               <p className="muted">{n.description || "—"}</p>
               <div className="meta">
                 <span>{n.filename}</span>
