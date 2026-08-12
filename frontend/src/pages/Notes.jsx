@@ -17,7 +17,11 @@ export default function Notes() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState(null);
+  const [isLocked, setIsLocked] = useState(false);
+  const [priceRupees, setPriceRupees] = useState(0);
+  const [editingNoteId, setEditingNoteId] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(null);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -31,25 +35,44 @@ export default function Notes() {
 
   useEffect(load, []);
 
+  const resetForm = (target) => {
+    setTitle("");
+    setDescription("");
+    setFile(null);
+    setIsLocked(false);
+    setPriceRupees(0);
+    setEditingNoteId(null);
+    if (target) target.reset();
+  };
+
   const upload = async (e) => {
     e.preventDefault();
     setError("");
-    if (!file) {
+    if (!file && !editingNoteId) {
       setError("Please choose a file");
       return;
     }
     setBusy(true);
-    const form = new FormData();
-    form.append("file", file);
-    form.append("title", title);
-    form.append("description", description);
     try {
-      await api.post("/admin/notes", form);
-      setTitle("");
-      setDescription("");
-      setFile(null);
-      e.target.reset();
-      setMsg("Uploaded!");
+      if (editingNoteId) {
+        await api.patch(`/admin/notes/${editingNoteId}`, {
+          title,
+          description,
+          is_locked: isLocked,
+          price_rupees: Number(priceRupees) || 0,
+        });
+        setMsg("Updated!");
+      } else {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("title", title);
+        form.append("description", description);
+        form.append("is_locked", String(isLocked));
+        form.append("price_rupees", String(Number(priceRupees) || 0));
+        await api.post("/admin/notes", form);
+        setMsg("Uploaded!");
+      }
+      resetForm(e.target);
       setTimeout(() => setMsg(""), 2000);
       load();
     } catch (err) {
@@ -60,6 +83,8 @@ export default function Notes() {
   };
 
   const download = async (note) => {
+    setError("");
+    setDownloadingId(note.id);
     try {
       const res = await api.get(`/notes/${note.id}/download`, {
         responseType: "blob",
@@ -74,7 +99,23 @@ export default function Notes() {
       URL.revokeObjectURL(url);
     } catch {
       setError("Download failed");
+    } finally {
+      setDownloadingId(null);
     }
+  };
+
+  const startEdit = (note) => {
+    setEditingNoteId(note.id);
+    setTitle(note.title);
+    setDescription(note.description || "");
+    setIsLocked(Boolean(note.is_locked));
+    setPriceRupees(Number(note.price_rupees || 0));
+    setError("");
+  };
+
+  const cancelEdit = (e) => {
+    if (e) e.preventDefault();
+    resetForm(null);
   };
 
   const remove = async (note) => {
@@ -89,7 +130,7 @@ export default function Notes() {
 
       {isAdmin && (
         <div className="card">
-          <h3>Upload a note</h3>
+          <h3>{editingNoteId ? "Edit note" : "Upload a note"}</h3>
           {msg && <div className="banner success">{msg}</div>}
           <form onSubmit={upload}>
             <label>Title</label>
@@ -100,12 +141,40 @@ export default function Notes() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            <label>File (PDF, doc, image, anything)</label>
-            <input type="file" onChange={(e) => setFile(e.target.files[0])} required />
+            {!editingNoteId && (
+              <>
+                <label>File (PDF, doc, image, anything)</label>
+                <input type="file" onChange={(e) => setFile(e.target.files[0])} required />
+              </>
+            )}
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <input
+                type="checkbox"
+                checked={isLocked}
+                onChange={(e) => setIsLocked(e.target.checked)}
+              />
+              Lock this note for paid access
+            </label>
+            <label>Price for unlock (₹)</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={priceRupees}
+              onChange={(e) => setPriceRupees(e.target.value)}
+              disabled={!isLocked}
+            />
             {error && <p className="error">{error}</p>}
-            <button className="btn" disabled={busy}>
-              {busy ? "Uploading…" : "Upload Note"}
-            </button>
+            <div className="row">
+              <button className="btn" disabled={busy}>
+                {busy ? (editingNoteId ? "Saving…" : "Uploading…") : editingNoteId ? "Save changes" : "Upload Note"}
+              </button>
+              {editingNoteId && (
+                <button className="btn btn-link" type="button" onClick={cancelEdit}>
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
         </div>
       )}
@@ -124,14 +193,25 @@ export default function Notes() {
                 <span>{n.filename}</span>
                 <span>{humanSize(n.size)}</span>
               </div>
+              {n.is_locked && (
+                <p className="muted">
+                  🔒 Locked note • ₹{n.price_rupees || 0}
+                </p>
+              )}
+              {!n.is_locked && <p className="muted">🔓 Free note</p>}
               <div className="row">
-                <button className="btn" onClick={() => download(n)}>
-                  ⬇ Download
+                <button className="btn" onClick={() => download(n)} disabled={downloadingId === n.id}>
+                  {downloadingId === n.id ? "Downloading…" : "⬇ Download"}
                 </button>
                 {isAdmin && (
-                  <button className="btn btn-danger" onClick={() => remove(n)}>
-                    Delete
-                  </button>
+                  <>
+                    <button className="btn btn-link" type="button" onClick={() => startEdit(n)}>
+                      Edit
+                    </button>
+                    <button className="btn btn-danger" onClick={() => remove(n)}>
+                      Delete
+                    </button>
+                  </>
                 )}
               </div>
             </div>
