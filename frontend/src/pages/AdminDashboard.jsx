@@ -4,7 +4,11 @@ import api from "../api";
 
 export default function AdminDashboard() {
   const [quizzes, setQuizzes] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [accessEmail, setAccessEmail] = useState("");
+  const [accessDays, setAccessDays] = useState(30);
+  const [accessMessage, setAccessMessage] = useState("");
 
   const load = () => {
     setLoading(true);
@@ -12,9 +16,36 @@ export default function AdminDashboard() {
       .get("/admin/quizzes")
       .then(({ data }) => setQuizzes(data))
       .finally(() => setLoading(false));
+    api.get("/admin/access/users").then(({ data }) => setUsers(data)).catch(() => {});
   };
 
   useEffect(load, []);
+
+  const grantAccess = async (event) => {
+    event.preventDefault();
+    setAccessMessage("");
+    try {
+      const { data } = await api.post("/admin/access/grant", {
+        email: accessEmail,
+        days: Number(accessDays),
+      });
+      setUsers((current) => current.map((user) => user.id === data.id ? data : user));
+      setAccessMessage(`Free access granted to ${data.name} until ${new Date(data.access_expires_at).toLocaleDateString()}.`);
+      setAccessEmail("");
+    } catch (error) {
+      setAccessMessage(error.response?.data?.detail || "Could not grant access.");
+    }
+  };
+
+  const revokeAccess = async (userId) => {
+    if (!window.confirm("Remove this user's admin-granted free access?")) return;
+    try {
+      await api.delete(`/admin/access/${userId}`);
+      setUsers((current) => current.map((user) => user.id === userId ? { ...user, free_access_expires_at: null } : user));
+    } catch (error) {
+      setAccessMessage(error.response?.data?.detail || "Could not remove access.");
+    }
+  };
 
   if (loading) return <div className="container">Loading…</div>;
 
@@ -70,6 +101,31 @@ export default function AdminDashboard() {
           </tbody>
         </table>
       )}
+
+      <section className="card access-management">
+        <h2>Free Test Access</h2>
+        <p className="muted">Grant a registered student access without a ₹99 payment.</p>
+        <form className="access-grant-form" onSubmit={grantAccess}>
+          <input type="email" placeholder="Student email" value={accessEmail} onChange={(e) => setAccessEmail(e.target.value)} required />
+          <input type="number" min="1" max="3650" value={accessDays} onChange={(e) => setAccessDays(e.target.value)} required />
+          <button className="btn" type="submit">Grant Free Access</button>
+        </form>
+        {accessMessage && <p className={accessMessage.startsWith("Free access") ? "banner success" : "error"}>{accessMessage}</p>}
+        {users.length > 0 && (
+          <table className="table access-users-table">
+            <thead><tr><th>Student</th><th>Access until</th><th></th></tr></thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td>{user.name}<br /><small>{user.email}</small></td>
+                  <td>{user.access_expires_at ? new Date(user.access_expires_at).toLocaleDateString() : "Locked"}</td>
+                  <td>{user.free_access_expires_at && <button className="btn-link" onClick={() => revokeAccess(user.id)}>Remove free access</button>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
 }

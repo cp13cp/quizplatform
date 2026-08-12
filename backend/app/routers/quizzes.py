@@ -14,6 +14,7 @@ from ..models import (
     SubmitAttempt,
 )
 from ..security import get_current_user
+from .payments import require_active_access
 
 router = APIRouter(prefix="/quizzes", tags=["quizzes"])
 
@@ -50,7 +51,7 @@ async def _get_quiz_or_404(quiz_id: str) -> dict:
 
 
 @router.get("/{quiz_id}", response_model=QuizForTaking)
-async def get_quiz_for_taking(quiz_id: str, user: dict = Depends(get_current_user)):
+async def get_quiz_for_taking(quiz_id: str, user: dict = Depends(require_active_access)):
     quiz = await _get_quiz_or_404(quiz_id)
     if not quiz.get("is_published") and user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Quiz is not published")
@@ -106,7 +107,7 @@ async def leaderboard(quiz_id: str, user: dict = Depends(get_current_user)):
 async def submit_quiz(
     quiz_id: str,
     payload: SubmitAttempt,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_active_access),
 ):
     db = get_db()
     quiz = await _get_quiz_or_404(quiz_id)

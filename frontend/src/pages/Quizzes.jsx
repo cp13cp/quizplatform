@@ -50,17 +50,63 @@ export default function Quizzes() {
   const [miniQuiz, setMiniQuiz] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [access, setAccess] = useState(null);
+  const [paymentError, setPaymentError] = useState("");
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     setMiniQuiz(buildMiniQuiz());
 
-    Promise.all([api.get("/quizzes"), api.get("/quizzes/attempts/me")])
-      .then(([q, a]) => {
+    Promise.all([api.get("/quizzes"), api.get("/quizzes/attempts/me"), api.get("/payments/status")])
+      .then(([q, a, status]) => {
         setQuizzes(q.data);
         setAttempts(a.data);
+        setAccess(status.data);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const startPayment = async () => {
+    setPaymentError("");
+    setPaying(true);
+    try {
+      const { data: order } = await api.post("/payments/order");
+      if (!window.Razorpay) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://checkout.razorpay.com/v1/checkout.js";
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Could not load payment checkout"));
+          document.body.appendChild(script);
+        });
+      }
+      const checkout = new window.Razorpay({
+        key: order.key_id,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Quiz Platform",
+        description: "Test access for 30 days",
+        order_id: order.order_id,
+        prefill: { name: JSON.parse(localStorage.getItem("user") || "{}").name || "" },
+        handler: async (response) => {
+          try {
+            const verified = await api.post("/payments/verify", response);
+            setAccess(verified.data);
+          } catch (err) {
+            setPaymentError(err.response?.data?.detail || "Payment could not be verified.");
+          } finally {
+            setPaying(false);
+          }
+        },
+        modal: { ondismiss: () => setPaying(false) },
+        theme: { color: "#4f46e5" },
+      });
+      checkout.open();
+    } catch (err) {
+      setPaymentError(err.response?.data?.detail || err.message || "Could not start payment.");
+      setPaying(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -139,6 +185,21 @@ export default function Quizzes() {
       </div>
 
       <h1>Available Quizzes</h1>
+      {access && !access.active && (
+        <div className="banner warn access-banner">
+          <div>
+            <strong>Tests are locked</strong>
+            <p>Pay ₹{access.price_rupees} to unlock every test for {access.duration_days} days.</p>
+          </div>
+          <button className="btn" onClick={startPayment} disabled={paying}>
+            {paying ? "Opening payment…" : "Unlock for ₹99"}
+          </button>
+        </div>
+      )}
+      {access?.active && access.expires_at && (
+        <div className="banner success">Test access active until {new Date(access.expires_at).toLocaleDateString()}.</div>
+      )}
+      {paymentError && <p className="error">{paymentError}</p>}
       <div className="filter-row">
         <input
           type="text"
@@ -181,9 +242,11 @@ export default function Quizzes() {
               <span>⏱ {fmtTime(q.time_limit_seconds)}</span>
             </div>
             <div className="row">
-              <Link className="btn" to={`/quizzes/${q.id}`}>
-                Start Quiz
-              </Link>
+              {access?.active ? (
+                <Link className="btn" to={`/quizzes/${q.id}`}>Start Quiz</Link>
+              ) : (
+                <button className="btn" onClick={startPayment} disabled={paying}>🔒 Unlock Test</button>
+              )}
               <Link className="btn-link" to={`/leaderboard/${q.id}`}>
                 🏆 Leaderboard
               </Link>

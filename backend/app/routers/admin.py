@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from ..database import get_db
 from ..models import (
     AnswerReview,
+    AdminAccessGrant,
+    AdminAccessUser,
     AttemptResult,
     AttemptSummary,
     Question,
@@ -22,6 +24,70 @@ from ..security import require_admin
 from .quizzes import quiz_summary
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get("/access/users", response_model=list[AdminAccessUser])
+async def list_access_users(admin: dict = Depends(require_admin)):
+    """Students and their current paid or admin-granted access expiry."""
+    db = get_db()
+    cursor = db.users.find({"role": "user"}).sort("name", 1)
+    return [
+        AdminAccessUser(
+            id=str(user["_id"]),
+            name=user.get("name", ""),
+            email=user["email"],
+            access_expires_at=max(
+                (expiry for expiry in (user.get("access_expires_at"), user.get("free_access_expires_at")) if expiry is not None),
+                default=None,
+            ),
+            free_access_expires_at=user.get("free_access_expires_at"),
+        )
+        async for user in cursor
+    ]
+
+
+@router.post("/access/grant", response_model=AdminAccessUser)
+async def grant_free_access(
+    payload: AdminAccessGrant, admin: dict = Depends(require_admin)
+):
+    """Give a registered student free access without collecting payment."""
+    db = get_db()
+    user = await db.users.find_one({"email": payload.email.lower(), "role": "user"})
+    if not user:
+        raise HTTPException(status_code=404, detail="Registered student not found")
+
+    now = datetime.now(timezone.utc)
+    current_expiry = user.get("free_access_expires_at")
+    start = current_expiry if current_expiry and current_expiry > now else now
+    expires_at = start + timedelta(days=payload.days)
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"free_access_expires_at": expires_at, "access_granted_by": admin["_id"]}},
+    )
+    return AdminAccessUser(
+        id=str(user["_id"]), name=user.get("name", ""), email=user["email"],
+        access_expires_at=max(
+            (expiry for expiry in (user.get("access_expires_at"), expires_at) if expiry is not None),
+            default=None,
+        ),
+        free_access_expires_at=expires_at,
+    )
+
+
+@router.delete("/access/{user_id}", status_code=204)
+async def revoke_free_access(user_id: str, admin: dict = Depends(require_admin)):
+    """Remove a student's access immediately."""
+    db = get_db()
+    try:
+        oid = ObjectId(user_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Student not found")
+    result = await db.users.update_one(
+        {"_id": oid, "role": "user"},
+        {"$unset": {"free_access_expires_at": "", "access_granted_by": ""}},
+    )
+    if not result.matched_count:
+        raise HTTPException(status_code=404, detail="Student not found")
 
 
 async def _get_quiz(quiz_id: str) -> dict:

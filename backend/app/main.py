@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .database import close_mongo_connection, connect_to_mongo, get_db
-from .routers import admin, auth, notes, quizzes
+from .routers import admin, auth, notes, payments, quizzes
 from .security import hash_password
 
 
@@ -45,6 +45,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(payments.router)
 app.include_router(quizzes.router)
 app.include_router(admin.router)
 app.include_router(notes.router)

@@ -53,6 +53,39 @@ class TokenOut(BaseModel):
     user: UserOut
 
 
+class AccessStatus(BaseModel):
+    active: bool
+    expires_at: datetime | None = None
+    price_rupees: int = 99
+    duration_days: int = 30
+
+
+class PaymentOrderOut(BaseModel):
+    key_id: str
+    order_id: str
+    amount: int
+    currency: str = "INR"
+
+
+class PaymentVerify(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+
+
+class AdminAccessGrant(BaseModel):
+    email: EmailStr
+    days: int = Field(default=30, ge=1, le=3650)
+
+
+class AdminAccessUser(BaseModel):
+    id: str
+    name: str
+    email: EmailStr
+    access_expires_at: datetime | None = None
+    free_access_expires_at: datetime | None = None
+
+
 # ---------- Quiz ----------
 
 

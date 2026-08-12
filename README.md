@@ -48,6 +48,9 @@ JWT_SECRET=<koi-lamba-random-string>
 ADMIN_EMAIL=admin@quiz.com
 ADMIN_PASSWORD=admin123
 CORS_ORIGINS=http://localhost:5173
+# Razorpay: ₹99 unlocks all tests for 30 days
+RAZORPAY_KEY_ID=rzp_test_your_key_id
+RAZORPAY_KEY_SECRET=your_key_secret
 ```
 
 Server chalayein:
@@ -58,6 +61,8 @@ uvicorn app.main:app --reload --port 8000
 
 - API docs: http://localhost:8000/docs
 - Startup par ek **admin** user automatically ban jaata hai (`ADMIN_EMAIL` / `ADMIN_PASSWORD`).
+- Student tests stay locked until the ₹99 Razorpay payment is verified. A verified
+  payment unlocks all tests for 30 days; admin accounts always retain access.
 
 > **Atlas note:** agar `SSL: TLSV1_ALERT_INTERNAL_ERROR` aaye to
 > Atlas → Network Access me apna IP (ya test ke liye `0.0.0.0/0`) allow karein.

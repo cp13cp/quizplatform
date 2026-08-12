@@ -532,6 +532,22 @@ input[type="radio"] {
   background: #fef3c7;
   border-color: #fde68a;
 }
+.access-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.access-banner p { margin: 0.3rem 0 0; }
+.access-management { margin-top: 2rem; }
+.access-grant-form { display: grid; grid-template-columns: minmax(180px, 1fr) 100px auto; gap: 0.75rem; align-items: center; }
+.access-users-table { margin-top: 1rem; }
+.access-users-table small { color: var(--muted); }
+button.btn-link { border: 0; background: transparent; cursor: pointer; padding: 0; }
+@media (max-width: 500px) {
+  .access-banner { align-items: stretch; flex-direction: column; }
+  .access-grant-form { grid-template-columns: 1fr; }
+}
 .badge {
   padding: 0.2rem 0.6rem;
   border-radius: 999px;

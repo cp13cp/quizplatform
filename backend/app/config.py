@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     email_timeout: int = 10
     sendgrid_api_key: str = ""
     password_reset_expire_minutes: int = 30
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    subscription_price_paise: int = 9900
+    subscription_days: int = 30
 
     @property
     def cors_origin_list(self) -> list[str]:
