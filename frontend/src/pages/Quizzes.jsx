@@ -199,6 +199,9 @@ export default function Quizzes() {
       {access?.active && access.expires_at && (
         <div className="banner success">Test access active until {new Date(access.expires_at).toLocaleDateString()}.</div>
       )}
+      {access?.active && !access.expires_at && (
+        <div className="banner success">🎉 Quizzes are free right now — all tests are unlocked.</div>
+      )}
       {paymentError && <p className="error">{paymentError}</p>}
       <div className="filter-row">
         <input
