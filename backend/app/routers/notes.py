@@ -22,6 +22,16 @@ def _bucket() -> AsyncIOMotorGridFSBucket:
     return AsyncIOMotorGridFSBucket(get_db(), bucket_name="notes")
 
 
+def _as_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "locked"}
+
+
 def _serialize(doc: dict) -> dict:
     meta = doc.get("metadata", {}) or {}
     return {
@@ -32,7 +42,7 @@ def _serialize(doc: dict) -> dict:
         "size": doc.get("length", 0),
         "content_type": meta.get("content_type", "application/octet-stream"),
         "uploaded_at": doc.get("uploadDate"),
-        "is_locked": bool(meta.get("is_locked", False)),
+        "is_locked": _as_bool(meta.get("is_locked", False)),
         "price_rupees": int(meta.get("price_rupees", 0) or 0),
     }
 
@@ -60,8 +70,8 @@ async def upload_note(
             "description": description,
             "content_type": file.content_type or "application/octet-stream",
             "uploaded_by": str(admin["_id"]),
-            "is_locked": is_locked,
-            "price_rupees": price_rupees,
+            "is_locked": bool(is_locked),
+            "price_rupees": int(price_rupees or 0),
         },
     )
     doc = await get_db()[FILES_COLLECTION].find_one({"_id": file_id})
@@ -91,7 +101,7 @@ async def download_note(note_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Note not found")
 
     meta = doc.get("metadata", {}) or {}
-    is_locked = bool(meta.get("is_locked", False))
+    is_locked = _as_bool(meta.get("is_locked", False))
     if is_locked and user.get("role") != "admin":
         from .payments import _access_status
 
@@ -142,16 +152,17 @@ async def update_note(note_id: str, payload: NoteUpdate, admin: dict = Depends(r
         await db[FILES_COLLECTION].update_one({"_id": oid}, {"$set": {"metadata": {**meta, **update_meta}}})
 
     updated = await db[FILES_COLLECTION].find_one({"_id": oid})
+    updated_meta = updated.get("metadata", {}) or {}
     return NoteSummary(
         id=str(updated["_id"]),
-        title=(updated.get("metadata", {}) or {}).get("title") or updated.get("filename", "Untitled"),
-        description=(updated.get("metadata", {}) or {}).get("description", ""),
+        title=updated_meta.get("title") or updated.get("filename", "Untitled"),
+        description=updated_meta.get("description", ""),
         filename=updated.get("filename", "file"),
         size=updated.get("length", 0),
-        content_type=(updated.get("metadata", {}) or {}).get("content_type", "application/octet-stream"),
+        content_type=updated_meta.get("content_type", "application/octet-stream"),
         uploaded_at=updated.get("uploadDate"),
-        is_locked=bool((updated.get("metadata", {}) or {}).get("is_locked", False)),
-        price_rupees=int((updated.get("metadata", {}) or {}).get("price_rupees", 0) or 0),
+        is_locked=_as_bool(updated_meta.get("is_locked", False)),
+        price_rupees=int(updated_meta.get("price_rupees", 0) or 0),
     )
 
 

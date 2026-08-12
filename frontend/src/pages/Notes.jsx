@@ -27,6 +27,13 @@ export default function Notes() {
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
 
+  const loadAccessStatus = () => {
+    api
+      .get("/payments/status")
+      .then(({ data }) => setAccess(data))
+      .catch(() => setAccess({ active: false, price_rupees: 199, duration_days: 30 }));
+  };
+
   const load = () => {
     setLoading(true);
     api
@@ -37,7 +44,7 @@ export default function Notes() {
 
   useEffect(() => {
     load();
-    api.get("/payments/status").then(({ data }) => setAccess(data)).catch(() => {});
+    loadAccessStatus();
   }, []);
 
   const resetForm = (target) => {
@@ -132,9 +139,11 @@ export default function Notes() {
     }
   };
 
+  const hasActiveAccess = user?.role === "admin" || Boolean(access?.active);
+
   const download = async (note) => {
-    if (note.is_locked && !isAdmin && !access?.active) {
-      setError("Please activate your access to download this locked note.");
+    if (note.is_locked && !hasActiveAccess) {
+      setError("Please buy the subscription to unlock and download this note.");
       return;
     }
 
@@ -249,15 +258,13 @@ export default function Notes() {
                 <span>{humanSize(n.size)}</span>
               </div>
               {n.is_locked && (
-                <p className="muted">
-                  🔒 Locked note • ₹{n.price_rupees || 0}
-                </p>
+                <p className="muted">🔒 Locked note • subscription required</p>
               )}
               {!n.is_locked && <p className="muted">🔓 Free note</p>}
               <div className="row">
-                {!isAdmin && n.is_locked && !access?.active ? (
+                {!isAdmin && n.is_locked && !hasActiveAccess ? (
                   <button className="btn" onClick={startPayment} disabled={paying}>
-                    {paying ? "Opening payment…" : `Unlock for ₹${access?.price_rupees ?? 2}`}
+                    {paying ? "Opening payment…" : "Buy Subscription"}
                   </button>
                 ) : (
                   <button
