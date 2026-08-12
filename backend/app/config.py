@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     admin_email: str = "admin@quiz.com"
     admin_password: str = "admin123"
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     frontend_url: str = "http://localhost:5173"
     email_host: str = ""
     email_port: int = 587
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     password_reset_expire_minutes: int = 30
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
-    subscription_price_paise: int = 19900
+    subscription_price_paise: int = 200
     subscription_days: int = 30
 
     @property

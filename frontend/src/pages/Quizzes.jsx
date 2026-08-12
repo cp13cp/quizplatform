@@ -52,6 +52,7 @@ export default function Quizzes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [access, setAccess] = useState(null);
   const [paymentError, setPaymentError] = useState("");
+  const [paymentSuccess, setPaymentSuccess] = useState("");
   const [paying, setPaying] = useState(false);
 
   const loadAccessStatus = async () => {
@@ -100,6 +101,7 @@ export default function Quizzes() {
 
   const startPayment = async () => {
     setPaymentError("");
+    setPaymentSuccess("");
     setPaying(true);
     try {
       const { data: order } = await api.post("/payments/order");
@@ -124,6 +126,8 @@ export default function Quizzes() {
           try {
             const verified = await api.post("/payments/verify", response);
             setAccess(verified.data);
+            setPaymentSuccess("Payment successful! Your test access is now active.");
+            setPaymentError("");
           } catch (err) {
             setPaymentError(err.response?.data?.detail || "Payment could not be verified.");
           } finally {
@@ -224,13 +228,14 @@ export default function Quizzes() {
             <p>Pay ₹{access.price_rupees} to unlock every test for {access.duration_days} days.</p>
           </div>
           <button className="btn" onClick={startPayment} disabled={paying}>
-            {paying ? "Opening payment…" : "Unlock for ₹199"}
+            {paying ? "Opening payment…" : `Unlock for ₹${access.price_rupees}`}
           </button>
         </div>
       )}
       {access?.active && access.expires_at && (
         <div className="banner success">Test access active until {new Date(access.expires_at).toLocaleDateString()}.</div>
       )}
+      {paymentSuccess && <p className="banner success">{paymentSuccess}</p>}
       {paymentError && <p className="error">{paymentError}</p>}
       <div className="filter-row">
         <input
@@ -277,7 +282,7 @@ export default function Quizzes() {
               {access?.active ? (
                 <Link className="btn" to={`/quizzes/${q.id}`}>Start Quiz</Link>
               ) : (
-                <button className="btn" onClick={startPayment} disabled={paying}>🔒 Unlock Test for ₹199</button>
+                <button className="btn" onClick={startPayment} disabled={paying}>🔒 Unlock Test for ₹{access?.price_rupees ?? 2}</button>
               )}
               <Link className="btn-link" to={`/leaderboard/${q.id}`}>
                 🏆 Leaderboard
