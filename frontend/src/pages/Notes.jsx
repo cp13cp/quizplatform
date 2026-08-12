@@ -22,6 +22,8 @@ export default function Notes() {
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [busy, setBusy] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [access, setAccess] = useState(null);
+  const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -33,7 +35,10 @@ export default function Notes() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+    api.get("/payments/status").then(({ data }) => setAccess(data)).catch(() => {});
+  }, []);
 
   const resetForm = (target) => {
     setTitle("");
@@ -82,7 +87,57 @@ export default function Notes() {
     }
   };
 
+  const startPayment = async () => {
+    setError("");
+    setPaying(true);
+    try {
+      const { data: order } = await api.post("/payments/order");
+      if (!window.Razorpay) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://checkout.razorpay.com/v1/checkout.js";
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Could not load payment checkout"));
+          document.body.appendChild(script);
+        });
+      }
+
+      const checkout = new window.Razorpay({
+        key: order.key_id,
+        amount: order.amount,
+        currency: order.currency,
+        name: "Quiz Platform",
+        description: "Note access for 30 days",
+        order_id: order.order_id,
+        prefill: { name: JSON.parse(localStorage.getItem("user") || "{}").name || "" },
+        handler: async (response) => {
+          try {
+            const verified = await api.post("/payments/verify", response);
+            setAccess(verified.data);
+            setMsg("Payment successful! Your access is now active.");
+            setTimeout(() => setMsg(""), 2500);
+          } catch (err) {
+            setError(err.response?.data?.detail || "Payment could not be verified.");
+          } finally {
+            setPaying(false);
+          }
+        },
+        modal: { ondismiss: () => setPaying(false) },
+        theme: { color: "#4f46e5" },
+      });
+      checkout.open();
+    } catch (err) {
+      setError(err.response?.data?.detail || err.message || "Could not start payment.");
+      setPaying(false);
+    }
+  };
+
   const download = async (note) => {
+    if (note.is_locked && !isAdmin && !access?.active) {
+      setError("Please activate your access to download this locked note.");
+      return;
+    }
+
     setError("");
     setDownloadingId(note.id);
     try {
@@ -98,7 +153,7 @@ export default function Notes() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setError("Download failed");
+      setError("Download failed. Please activate your access first.");
     } finally {
       setDownloadingId(null);
     }
@@ -200,9 +255,19 @@ export default function Notes() {
               )}
               {!n.is_locked && <p className="muted">🔓 Free note</p>}
               <div className="row">
-                <button className="btn" onClick={() => download(n)} disabled={downloadingId === n.id}>
-                  {downloadingId === n.id ? "Downloading…" : "⬇ Download"}
-                </button>
+                {!isAdmin && n.is_locked && !access?.active ? (
+                  <button className="btn" onClick={startPayment} disabled={paying}>
+                    {paying ? "Opening payment…" : `Unlock for ₹${access?.price_rupees ?? 2}`}
+                  </button>
+                ) : (
+                  <button
+                    className="btn"
+                    onClick={() => download(n)}
+                    disabled={downloadingId === n.id}
+                  >
+                    {downloadingId === n.id ? "Downloading…" : "⬇ Download"}
+                  </button>
+                )}
                 {isAdmin && (
                   <>
                     <button className="btn btn-link" type="button" onClick={() => startEdit(n)}>
