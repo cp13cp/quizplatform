@@ -174,6 +174,29 @@ export default function Quizzes() {
     );
   }
 
+  let accessBanner = null;
+  if (access?.active && access.expires_at) {
+    const expiry = new Date(access.expires_at);
+    const now = new Date();
+    const diffMs = expiry - now;
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    let unitText;
+    if (diffDays >= 365) {
+      const years = Math.floor(diffDays / 365);
+      unitText = years > 1 ? `${years} years left` : `1 year left`;
+    } else if (diffDays >= 30) {
+      const months = Math.ceil(diffDays / 30);
+      unitText = months > 1 ? `${months} months left` : `1 month left`;
+    } else if (diffDays >= 1) {
+      unitText = diffDays > 1 ? `${diffDays} days left` : `1 day left`;
+    } else {
+      unitText = `Less than a day left`;
+    }
+    accessBanner = (
+      <div className="banner success">Test access active until {expiry.toLocaleDateString()} ({unitText}).</div>
+    );
+  }
+
   const completed = new Set(attempts.map((a) => a.quiz_id)).size;
   const avgScore = attempts.length
     ? Math.round(
@@ -232,9 +255,7 @@ export default function Quizzes() {
           </button>
         </div>
       )}
-      {access?.active && access.expires_at && (
-        <div className="banner success">Test access active until {new Date(access.expires_at).toLocaleDateString()}.</div>
-      )}
+      {accessBanner}
       {paymentSuccess && <p className="banner success">{paymentSuccess}</p>}
       {paymentError && <p className="error">{paymentError}</p>}
       <div className="filter-row">

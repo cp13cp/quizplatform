@@ -324,8 +324,76 @@ input[type="radio"] {
   align-items: start;
 }
 .q-text {
-  font-size: 1.1rem;
-  margin: 0.5rem 0 1rem;
+  font-size: 1.25rem;
+  margin: 0.25rem 0 0.75rem;
+  font-weight: 600;
+}
+
+/* Prevent question text selection/copy */
+.q-text {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+/* Ensure question card has enough height for alignment */
+.card.question.take-main {
+  min-height: 260px;
+}
+
+/* Also prevent selecting/copying option text */
+.options,
+.option,
+.option span {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+/* Code-style question rendering */
+.q-code {
+  background: #0e0e0e;
+  color: #e6e6e6;
+  padding: 1.4rem 1.6rem;
+  border-radius: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  border: 2px dashed #6b6b6b;
+  margin: 0.6rem 0 1rem;
+  font-size: 1.02rem;
+  line-height: 1.9;
+  max-height: none;
+  overflow: visible;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+  position: relative;
+}
+
+.q-code::before {
+  content: 'JS';
+  position: absolute;
+  top: -12px;
+  left: 14px;
+  background: #111;
+  color: #fff;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.7rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.q-code ol, .q-code ul {
+  margin: 0;
+  padding-left: 0;
+}
+
+/* Make options spacing similar to screenshot */
+.option {
+  padding: 0.9rem 0.95rem;
+}
+.option span {
+  display: block;
 }
 .take-actions {
   display: flex;
@@ -404,6 +472,25 @@ input[type="radio"] {
 .badge.orange {
   background: #fed7aa;
   color: #9a3412;
+}
+
+.badge {
+  display: inline-block;
+  background: #eef2ff;
+  color: var(--primary-dark);
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.badge.green {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.danger {
+  background: #fee2e2;
+  color: #991b1b;
 }
 @media (max-width: 700px) {
   .take-layout {

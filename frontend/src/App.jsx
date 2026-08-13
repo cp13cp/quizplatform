@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import Navbar from "./components/Navbar.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import AdminCreate from "./pages/AdminCreate.jsx";
+import AdminCreateFromText from "./pages/AdminCreateFromText.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminQuizDetail from "./pages/AdminQuizDetail.jsx";
 import AdminUpload from "./pages/AdminUpload.jsx";
@@ -86,6 +87,14 @@ export default function App() {
           element={
             <Protected adminOnly>
               <AdminCreate />
+            </Protected>
+          }
+        />
+        <Route
+          path="/admin/paste"
+          element={
+            <Protected adminOnly>
+              <AdminCreateFromText />
             </Protected>
           }
         />

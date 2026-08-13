@@ -21,6 +21,7 @@ export default function TakeQuiz() {
 
   const startRef = useRef(Date.now());
   const submittedRef = useRef(false);
+  const questionRef = useRef(null);
 
   const submit = useCallback(
     async (auto = false) => {
@@ -84,6 +85,23 @@ export default function TakeQuiz() {
 
   const go = (i) => setCurrent(Math.max(0, Math.min(i, quiz.questions.length - 1)));
 
+  // Prevent copying/question text selection inside the question card
+  useEffect(() => {
+    const el = questionRef.current;
+    if (!el) return;
+    const prevent = (e) => e.preventDefault();
+    el.addEventListener("copy", prevent);
+    el.addEventListener("cut", prevent);
+    el.addEventListener("contextmenu", prevent);
+    el.addEventListener("selectstart", prevent);
+    return () => {
+      el.removeEventListener("copy", prevent);
+      el.removeEventListener("cut", prevent);
+      el.removeEventListener("contextmenu", prevent);
+      el.removeEventListener("selectstart", prevent);
+    };
+  }, [questionRef, current]);
+
   const handleSubmit = () => {
     const unanswered = answers.filter((a) => a < 0).length;
     if (
@@ -100,6 +118,66 @@ export default function TakeQuiz() {
   if (!quiz) return <div className="container">Loading…</div>;
 
   const q = quiz.questions[current];
+
+  const { questionText, codeText } = (() => {
+    if (!q || !q.text) return { questionText: "", codeText: "" };
+    const t = q.text.trim();
+    // Prefer splitting on a blank line (question above, code below)
+    const parts = t.split(/\n\s*\n/);
+    if (parts.length > 1) {
+      return { questionText: parts[0].trim(), codeText: parts.slice(1).join("\n\n").trim() };
+    }
+    // Otherwise look for a code-like token and split there
+    const codeMarker = t.search(/const\s+|let\s+|function\s+|class\s+|console\.|=>|\{|\}/);
+    if (codeMarker !== -1) {
+      const qPart = t.slice(0, codeMarker).trim();
+      const cPart = t.slice(codeMarker).trim();
+      if (qPart) return { questionText: qPart, codeText: cPart };
+      // fallback: use first line as question, rest as code
+      const lines = t.split(/\n/);
+      return { questionText: lines[0].trim(), codeText: lines.slice(1).join("\n").trim() };
+    }
+    return { questionText: t, codeText: "" };
+  })();
+
+  const displayCode = (() => {
+    if (!codeText) return "";
+    // Insert a newline after every semicolon that isn't already followed by a newline.
+    // Keep existing newlines intact.
+    let s = codeText;
+    // semicolons -> newline
+    s = s.replace(/;\s*(?!\n)/g, ";\n");
+    // comma followed by a function-like token -> newline after comma
+    s = s.replace(/,\s*(?=(?:function\b|const\b|let\b|var\b|class\b|[A-Za-z_$][A-Za-z0-9_$]*\s*\(|[A-Za-z_$][A-Za-z0-9_$]*\s*=>))/g, ",\n");
+    // closing brace -> newline (if not already)
+    s = s.replace(/\}\s*(?![\n,;])/g, "}\n");
+
+    // Remove accidental scanned/page text like "this concept Page 3"
+    s = s.replace(/this concept\s*Page\s*\d+/ig, "");
+    // Remove repeated blank lines caused by removals
+    s = s.replace(/\n{3,}/g, "\n\n");
+
+    // Now add indentation based on brace nesting (display-only)
+    const lines = s.split(/\n/);
+    let depth = 0;
+    const out = [];
+    for (let rawLine of lines) {
+      let line = rawLine.trim();
+      if (!line) {
+        out.push("");
+        continue;
+      }
+      // if line starts with closing brace, reduce depth first
+      if (/^\}/.test(line)) depth = Math.max(0, depth - 1);
+      const indent = "  ".repeat(depth);
+      out.push(indent + line);
+      // increase depth for lines that contain opening brace (not in same-line close)
+      const opens = (line.match(/\{/g) || []).length;
+      const closes = (line.match(/\}/g) || []).length;
+      depth += Math.max(0, opens - closes);
+    }
+    return out.join("\n");
+  })();
   const answeredCount = answers.filter((a) => a >= 0).length;
   const lowTime = remaining !== null && remaining <= 10;
 
@@ -128,14 +206,15 @@ export default function TakeQuiz() {
 
       <div className="take-layout">
         {/* Current question */}
-        <div className="card question take-main">
+        <div className="card question take-main" ref={questionRef}>
           <div className="quiz-header">
             <h3>
               Question {current + 1} of {quiz.questions.length}
             </h3>
             {marked[current] && <span className="badge orange">Marked</span>}
           </div>
-          <p className="q-text">{q.text}</p>
+          {questionText && <p className="q-text">{questionText}</p>}
+          {codeText && <pre className="q-code">{displayCode}</pre>}
           <div className="options">
             {q.options.map((opt, oi) => (
               <label

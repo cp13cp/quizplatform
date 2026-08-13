@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+from pydantic import BaseModel
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
@@ -179,6 +180,90 @@ async def create_quiz(payload: QuizCreate, admin: dict = Depends(require_admin))
         "created_by": admin["_id"],
         "created_at": datetime.now(timezone.utc),
         "source_filename": None,
+    }
+    result = await db.quizzes.insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return _admin_detail(doc)
+
+
+class QuizTextCreate(BaseModel):
+    title: str
+    description: str | None = None
+    time_limit_seconds: int | None = 0
+    text: str
+
+
+def _parse_questions_from_text(text: str) -> list[dict]:
+    """Parse a simple pasted quiz format into question dicts.
+
+    Format (blocks separated by blank line):
+    Question line
+    A) option one
+    B) option two *   <- trailing * marks correct
+
+    If no letter prefixes are present, treat subsequent non-empty lines as options.
+    """
+    blocks = [b.strip() for b in text.split("\n\n") if b.strip()]
+    questions: list[dict] = []
+    for block in blocks:
+        lines = [l.strip() for l in block.splitlines() if l.strip()]
+        if not lines:
+            continue
+        qtext = lines[0]
+        opts = []
+        correct_idx = -1
+        for i, line in enumerate(lines[1:]):
+            # Detect markers like 'A) text', '- text', '1. text'
+            opt = line
+            # remove leading label like 'A)' or '1.' or '-'
+            if len(opt) > 2 and (opt[1] == ')' or opt[1] == '.'):
+                opt = opt[2:].strip()
+            elif opt.startswith('- '):
+                opt = opt[2:].strip()
+            # detect correctness markers
+            if opt.endswith('*'):
+                opt = opt[:-1].strip()
+                correct_idx = len(opts)
+            elif opt.lower().endswith('(correct)'):
+                opt = opt[: -len('(correct)')].strip()
+                correct_idx = len(opts)
+            elif opt.startswith('*'):
+                opt = opt[1:].strip()
+                correct_idx = len(opts)
+            opts.append(opt)
+
+        # If only question and no explicit options, try splitting by '|' or ';'
+        if not opts:
+            parts = [p.strip() for p in qtext.split('|') if p.strip()]
+            if len(parts) > 1:
+                # first part as question, rest as options
+                qtext = parts[0]
+                opts = parts[1:]
+
+        questions.append({
+            "text": qtext,
+            "options": opts or ["Option 1", "Option 2"],
+            "correct_index": correct_idx,
+        })
+    return questions
+
+
+@router.post("/quizzes/from-text", response_model=QuizAdminDetail)
+async def create_quiz_from_text(payload: QuizTextCreate, admin: dict = Depends(require_admin)):
+    """Create a quiz by pasting plain text (admin only)."""
+    db = get_db()
+    questions = _parse_questions_from_text(payload.text)
+    if not questions:
+        raise HTTPException(status_code=422, detail="No questions parsed from text")
+    doc = {
+        "title": payload.title,
+        "description": payload.description or "",
+        "time_limit_seconds": max(0, int(payload.time_limit_seconds or 0)),
+        "questions": questions,
+        "is_published": True,
+        "created_by": admin["_id"],
+        "created_at": datetime.now(timezone.utc),
+        "source_filename": "pasted",
     }
     result = await db.quizzes.insert_one(doc)
     doc["_id"] = result.inserted_id

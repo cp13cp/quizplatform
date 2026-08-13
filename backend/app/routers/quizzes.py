@@ -51,10 +51,16 @@ async def _get_quiz_or_404(quiz_id: str) -> dict:
 
 
 @router.get("/{quiz_id}", response_model=QuizForTaking)
-async def get_quiz_for_taking(quiz_id: str, user: dict = Depends(require_active_access)):
+async def get_quiz_for_taking(quiz_id: str, user: dict = Depends(get_current_user)):
     quiz = await _get_quiz_or_404(quiz_id)
     if not quiz.get("is_published") and user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Quiz is not published")
+
+    # Allow quizzes explicitly marked as free to be taken by any user
+    if not quiz.get("is_free") and user.get("role") != "admin":
+        # Enforce active access (will raise 402 if the user lacks access)
+        await require_active_access(user)
+
     return QuizForTaking(
         id=str(quiz["_id"]),
         title=quiz["title"],
@@ -107,12 +113,16 @@ async def leaderboard(quiz_id: str, user: dict = Depends(get_current_user)):
 async def submit_quiz(
     quiz_id: str,
     payload: SubmitAttempt,
-    user: dict = Depends(require_active_access),
+    user: dict = Depends(get_current_user),
 ):
     db = get_db()
     quiz = await _get_quiz_or_404(quiz_id)
     if not quiz.get("is_published") and user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Quiz is not published")
+
+    # If quiz is not explicitly free, require active access for submission
+    if not quiz.get("is_free") and user.get("role") != "admin":
+        await require_active_access(user)
 
     questions = quiz.get("questions", [])
     answers = payload.answers

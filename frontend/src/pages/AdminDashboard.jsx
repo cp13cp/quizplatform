@@ -57,6 +57,9 @@ export default function AdminDashboard() {
           <Link className="btn" to="/admin/create">
             + Create Manually
           </Link>
+          <Link className="btn" to="/admin/paste">
+            + Paste Quiz
+          </Link>
           <Link className="btn" to="/admin/upload">
             + Upload PDF
           </Link>

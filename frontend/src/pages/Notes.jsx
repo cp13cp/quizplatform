@@ -339,10 +339,22 @@ export default function Notes() {
                 <span>{n.filename}</span>
                 <span>{humanSize(n.size)}</span>
               </div>
-              {n.is_locked && (
-                <p className="muted">🔒 Locked note • subscription required</p>
+              {n.is_locked ? (
+                (hasActiveAccess || isAdmin) ? (
+                  <p>
+                    <span className="badge green">Unlocked</span>
+                  </p>
+                ) : (
+                  <p>
+                    <span className="badge danger">Locked</span>
+                    <span className="muted" style={{ marginLeft: "0.6rem" }}>subscription required</span>
+                  </p>
+                )
+              ) : (
+                <p>
+                  <span className="badge">Free</span>
+                </p>
               )}
-              {!n.is_locked && <p className="muted">🔓 Free note</p>}
               <div className="row">
                 {!isAdmin && n.is_locked && !hasActiveAccess ? (
                   <button className="btn" onClick={startPayment} disabled={paying}>
