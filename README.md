@@ -1,100 +1,118 @@
-# Quiz Platform (React + FastAPI + MongoDB)
+# Quiz Platform | React + FastAPI + MongoDB Quiz App
 
-Admin ek **PDF** upload karta hai → questions automatically **extract** ho jaate hain →
-admin timer/answers set karke quiz **publish** karta hai → users quiz **solve** karke
-turant **result + review** dekhte hain. Admin har quiz ke **results** dekh sakta hai.
+A modern quiz platform built with React, FastAPI, and MongoDB for creating, publishing, and taking online quizzes. Admins can upload PDF-based question papers, review extracted questions, set timers, and publish exams. Users can register, unlock test access, take quizzes, and view instant results with answer reviews.
+
+This project is ideal for educational platforms, exam portals, and online assessment systems that need quiz creation, exam management, and leaderboard tracking in one scalable app.
 
 ## Features
 
-- 🔐 JWT auth, do roles: **admin** aur **user**
-- 📄 PDF se quiz extraction (questions + options + correct answer)
-- ⏱ Har quiz par **timer** (auto-submit jab time khatam)
-- ✅ Auto-scoring + detailed answer review
-- 🛠 Admin: upload, timer set, parsed answers edit/fix, publish/unpublish, results
-- 📊 User: quiz list, quiz solve, apne attempts ka history
+- JWT-based authentication with admin and user roles
+- PDF quiz upload and automatic question extraction
+- Quiz timer and auto-submit support
+- Instant scoring and detailed answer review
+- Admin dashboard for quiz management and results
+- User dashboard with available quizzes, leaderboard, and attempt history
+- Category-based quiz filters
+- Razorpay payment integration for paid test access
+- MongoDB-ready architecture for scalable deployment
 
-## Tech stack
+## Tech Stack
 
-| Layer     | Tech                                   |
-| --------- | -------------------------------------- |
-| Frontend  | React 18 + Vite + React Router + Axios |
-| Backend   | FastAPI + Motor (async MongoDB)        |
-| Database  | MongoDB (local ya Atlas)               |
-| PDF parse | pdfplumber                             |
-| Auth      | JWT (python-jose) + bcrypt (passlib)   |
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 18, Vite, React Router, Axios |
+| Backend | FastAPI, Python, Motor |
+| Database | MongoDB |
+| PDF Parsing | pdfplumber |
+| Authentication | JWT, Passlib, Bcrypt |
+| Payments | Razorpay |
 
 ---
 
-## 1. Backend setup
+## Why This Project Is Useful
+
+This app solves common problems in online exam systems:
+
+- Admins can convert PDF question papers into structured quiz data in minutes
+- Students get a clean, timed, exam-like experience
+- Results are available immediately after submission
+- Quiz categories help organize and filter learning content
+- Payment-gated access can control test availability
+
+It is a strong example of a full-stack quiz application built with modern web technologies and suitable for educational, hiring, or training use cases.
+
+---
+
+## 1. Backend Setup
 
 ```bash
 cd backend
 python -m venv .venv
+
 # Windows
 .venv\Scripts\activate
+
 # macOS/Linux
 source .venv/bin/activate
 
 pip install -r requirements.txt
-cp .env.example .env      # phir .env me apni values daalein
+cp .env.example .env
 ```
 
-`.env` me set karein:
+Add the required environment variables in `.env`:
 
 ```env
-MONGO_URI=mongodb://localhost:27017          # ya Atlas: mongodb+srv://...
+MONGO_URI=mongodb://localhost:27017
 DB_NAME=quizapp
-JWT_SECRET=<koi-lamba-random-string>
+JWT_SECRET=your_super_secure_secret_key
 ADMIN_EMAIL=admin@quiz.com
 ADMIN_PASSWORD=admin123
 CORS_ORIGINS=http://localhost:5173
-# Razorpay: ₹99 unlocks all tests for 30 days
 RAZORPAY_KEY_ID=rzp_test_your_key_id
 RAZORPAY_KEY_SECRET=your_key_secret
 ```
 
-Server chalayein:
+Run the backend server:
 
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
+Useful links:
+
 - API docs: http://localhost:8000/docs
-- Startup par ek **admin** user automatically ban jaata hai (`ADMIN_EMAIL` / `ADMIN_PASSWORD`).
-- Student tests stay locked until the ₹99 Razorpay payment is verified. A verified
-  payment unlocks all tests for 30 days; admin accounts always retain access.
+- Default admin login: `admin@quiz.com / admin123`
 
-> **Atlas note:** agar `SSL: TLSV1_ALERT_INTERNAL_ERROR` aaye to
-> Atlas → Network Access me apna IP (ya test ke liye `0.0.0.0/0`) allow karein.
-> Code Atlas ke liye `certifi` CA bundle automatically use karta hai.
+> If using MongoDB Atlas, ensure your IP is whitelisted. If you see `SSL: TLSV1_ALERT_INTERNAL_ERROR`, check Atlas network access and required CA settings.
 
-## 2. Frontend setup
+---
+
+## 2. Frontend Setup
 
 ```bash
 cd frontend
 npm install
-cp .env.example .env       # VITE_API_URL=http://localhost:8000
+cp .env.example .env
 npm run dev
 ```
 
-App: http://localhost:5173
+Frontend app URL:
+
+- http://localhost:5173
 
 ---
 
-## 3. PDF format (important)
+## 3. PDF Quiz Format
 
-Extraction in rules ko follow karta hai:
+The PDF parser supports common exam formats such as:
 
-- Question ek **number + `.` ya `)`** se shuru: `1.` ya `12)`
-- Options ek letter (A–H) + `.` `)` ya bracket se: `A)` `b.` `(C)`
-- Optional answer line: `Answer: A` / `Ans: b` / `Correct: 3`
-  (letter ya 1-based number — dono chalte hain)
-- Answer line na ho to question phir bhi import hota hai; admin baad me
-  dashboard se correct answer set kar sakta hai.
+- Questions starting with `1.` or `12)`
+- Options labeled as `A)`, `b.`, or `(C)`
+- Optional answer lines such as `Answer: A`, `Ans: c`, or `Correct: 3`
 
-**Example:**
+Example:
 
-```
+```text
 1. What is the capital of France?
 A) Paris
 B) London
@@ -110,66 +128,101 @@ d. 13
 Ans: c
 ```
 
-### Sample PDF banayein
+If an answer line is missing, the admin can still fix or set the correct answer manually from the dashboard later.
+
+### Generate Sample PDF
 
 ```bash
 cd backend
 pip install reportlab
-python scripts/make_sample_pdf.py     # sample_quiz.pdf banega
+python scripts/make_sample_pdf.py
+```
+
+This creates a sample quiz PDF for testing the extraction pipeline.
+
+---
+
+## 4. How It Works
+
+1. Admin logs in with the admin account.
+2. Admin uploads a quiz PDF and enters a title, description, category, and timer.
+3. Quiz questions are extracted and can be reviewed and corrected.
+4. Admin publishes the quiz.
+5. A user registers, unlocks access, and starts the quiz.
+6. The user submits the quiz and sees the result with review details.
+7. Admin can view attempts and performance reports for each quiz.
+
+---
+
+## API Overview
+
+| Method | Endpoint | Role | Purpose |
+| --- | --- | --- | --- |
+| POST | `/auth/register` | User | Create account |
+| POST | `/auth/forgot-password` | User | Request password reset |
+| POST | `/auth/reset-password` | User | Confirm password reset |
+| POST | `/auth/login` | User/Admin | Login |
+| GET | `/quizzes` | User | List published quizzes |
+| GET | `/quizzes/{id}` | User | Fetch quiz details |
+| POST | `/quizzes/{id}/submit` | User | Submit answers |
+| GET | `/quizzes/attempts/me` | User | View my attempts |
+| POST | `/admin/quizzes/upload` | Admin | Upload and parse PDF quiz |
+| GET | `/admin/quizzes` | Admin | View all quizzes |
+| PATCH | `/admin/quizzes/{id}` | Admin | Update quiz settings |
+| PUT | `/admin/quizzes/{id}/questions` | Admin | Replace quiz questions |
+| DELETE | `/admin/quizzes/{id}` | Admin | Delete quiz |
+| GET | `/admin/quizzes/{id}/results` | Admin | View all quiz attempts |
+
+---
+
+## Project Structure
+
+```text
+tracknew/
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── config.py
+│   │   ├── database.py
+│   │   ├── security.py
+│   │   ├── models.py
+│   │   ├── pdf_parser.py
+│   │   └── routers/
+│   │       ├── auth.py
+│   │       ├── quizzes.py
+│   │       └── admin.py
+│   ├── scripts/
+│   │   └── make_sample_pdf.py
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── api.js
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   ├── components/
+│   │   ├── context/
+│   │   └── pages/
+│   ├── index.html
+│   ├── package.json
+│   └── vite.config.js
+├── README.md
+├── netlify.toml
+├── render.yaml
+└── .gitignore
 ```
 
 ---
 
-## 4. Flow (kaise use karein)
+## License
 
-1. `admin@quiz.com / admin123` se **login** karein.
-2. **Upload PDF** → title, description, timer (minutes) dekar upload.
-3. Quiz detail page par parsed questions verify karein, zaroorat ho to correct
-   answer/text fix karein, **Save Questions**.
-4. **Publish** dabayein.
-5. Naya **user register** karein (ya alag browser), quiz solve karein — timer
-   chalega, submit par result + review milega.
-6. Admin quiz detail page par sabhi users ke **results** dekh sakta hai.
+This project is intended for educational and demo purposes. Use it as a starting point for your own online quiz system or learning platform.
 
-## API summary
+## Contributing
 
-| Method | Endpoint                          | Role  | Kaam                          |
-| ------ | --------------------------------- | ----- | ----------------------------- |
-| POST   | `/auth/register`                  | -     | User register                 |
-| POST   | `/auth/forgot-password`           | -     | Send password reset link      |
-| POST   | `/auth/reset-password`            | -     | Reset password with emailed link |
-| POST   | `/auth/login`                     | -     | Login (admin/user)            |
-| GET    | `/quizzes`                        | user  | Published quizzes list        |
-| GET    | `/quizzes/{id}`                   | user  | Quiz (answers hidden)         |
-| POST   | `/quizzes/{id}/submit`            | user  | Submit + score + review       |
-| GET    | `/quizzes/attempts/me`            | user  | Mere attempts                 |
-| POST   | `/admin/quizzes/upload`           | admin | PDF upload + extract          |
-| GET    | `/admin/quizzes`                  | admin | Saare quizzes                 |
-| PATCH  | `/admin/quizzes/{id}`             | admin | Title/timer/publish update    |
-| PUT    | `/admin/quizzes/{id}/questions`   | admin | Questions/answers replace     |
-| DELETE | `/admin/quizzes/{id}`             | admin | Quiz delete                   |
-| GET    | `/admin/quizzes/{id}/results`     | admin | Quiz ke saare attempts        |
+Pull requests and improvements are welcome. You can extend this project by adding:
 
-## Project structure
-
-```
-tracknew/
-├── backend/
-│   ├── app/
-│   │   ├── main.py            # FastAPI app, startup, admin bootstrap, CORS
-│   │   ├── config.py          # env settings
-│   │   ├── database.py        # motor client (+ certifi for Atlas)
-│   │   ├── security.py        # JWT + password hashing + role guards
-│   │   ├── models.py          # Pydantic schemas
-│   │   ├── pdf_parser.py      # PDF → questions
-│   │   └── routers/{auth,quizzes,admin}.py
-│   ├── scripts/make_sample_pdf.py
-│   └── requirements.txt
-└── frontend/
-    └── src/
-        ├── api.js             # axios + token interceptor
-        ├── context/AuthContext.jsx
-        ├── components/Navbar.jsx
-        └── pages/{Login,Register,Quizzes,TakeQuiz,Result,
-                    AdminDashboard,AdminUpload,AdminQuizDetail}.jsx
-```
+- more question formats
+- exam analytics dashboards
+- student progress tracking
+- better anti-cheating features
+- multi-language support
