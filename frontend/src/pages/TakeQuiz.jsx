@@ -18,10 +18,13 @@ export default function TakeQuiz() {
   const [remaining, setRemaining] = useState(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [tabWarning, setTabWarning] = useState("");
 
   const startRef = useRef(Date.now());
   const submittedRef = useRef(false);
   const questionRef = useRef(null);
+  const tabSwitchCountRef = useRef(0);
 
   const submit = useCallback(
     async (auto = false) => {
@@ -73,6 +76,36 @@ export default function TakeQuiz() {
     const t = setTimeout(() => setRemaining((r) => r - 1), 1000);
     return () => clearTimeout(t);
   }, [remaining]);
+
+  useEffect(() => {
+    const handleTabLeave = () => {
+      if (submittedRef.current) return;
+
+      const nextCount = tabSwitchCountRef.current + 1;
+      tabSwitchCountRef.current = nextCount;
+      setTabSwitchCount(nextCount);
+
+      if (nextCount >= 2) {
+        setTabWarning("Multiple tab switches detected. The quiz is being auto-submitted.");
+        submitRef.current(true);
+        return;
+      }
+
+      setTabWarning("Warning: You left the tab during this quiz. This may be recorded.");
+    };
+
+    const handleVisibility = () => {
+      if (document.hidden) handleTabLeave();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("blur", handleTabLeave);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("blur", handleTabLeave);
+    };
+  }, []);
 
   const choose = (oi) =>
     setAnswers((prev) => prev.map((a, i) => (i === current ? oi : a)));
@@ -203,6 +236,14 @@ export default function TakeQuiz() {
           </div>
         )}
       </div>
+
+      {tabWarning && (
+        <div className="tab-warning" role="alert">
+          <span>⚠️</span>
+          <span>{tabWarning}</span>
+          <strong>({tabSwitchCount})</strong>
+        </div>
+      )}
 
       <div className="take-layout">
         {/* Current question */}

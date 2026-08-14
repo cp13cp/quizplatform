@@ -40,6 +40,18 @@ a {
   font-weight: 700;
   font-size: 1.2rem;
   color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transition: transform 0.2s ease;
+}
+.brand:hover {
+  transform: scale(1.05);
+}
+.logo-img {
+  height: 40px;
+  width: 40px;
+  object-fit: contain;
 }
 .nav-links {
   display: flex;
@@ -305,6 +317,21 @@ input[type="radio"] {
   color: var(--danger);
   animation: pulse 1s infinite;
 }
+
+.tab-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a4d08;
+  padding: 0.8rem 1rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
 @keyframes pulse {
   50% {
     opacity: 0.6;
