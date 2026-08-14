@@ -85,13 +85,11 @@ export default function TakeQuiz() {
       tabSwitchCountRef.current = nextCount;
       setTabSwitchCount(nextCount);
 
-      if (nextCount >= 2) {
-        setTabWarning("Multiple tab switches detected. The quiz is being auto-submitted.");
-        submitRef.current(true);
-        return;
-      }
-
-      setTabWarning("Warning: You left the tab during this quiz. This may be recorded.");
+      const message =
+        "Tab switch detected. You left the quiz tab, so the quiz has been auto-submitted.";
+      setTabWarning(message);
+      setError(message);
+      submitRef.current(true);
     };
 
     const handleVisibility = () => {
@@ -237,11 +235,24 @@ export default function TakeQuiz() {
         )}
       </div>
 
+      {tabSwitchCount === 0 && (
+        <div className="tab-warning" role="alert">
+          <span>⚠️</span>
+          <span>Do not switch tabs. One tab switch will auto-submit the quiz.</span>
+        </div>
+      )}
+
       {tabWarning && (
         <div className="tab-warning" role="alert">
           <span>⚠️</span>
           <span>{tabWarning}</span>
           <strong>({tabSwitchCount})</strong>
+        </div>
+      )}
+
+      {error && (
+        <div className="error-box" role="alert">
+          {error}
         </div>
       )}
 
