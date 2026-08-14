@@ -20,6 +20,7 @@ export default function TakeQuiz() {
   const [submitting, setSubmitting] = useState(false);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [tabWarning, setTabWarning] = useState("");
+  const [hasStarted, setHasStarted] = useState(false);
 
   const startRef = useRef(Date.now());
   const submittedRef = useRef(false);
@@ -59,8 +60,6 @@ export default function TakeQuiz() {
         setQuiz(data);
         setAnswers(new Array(data.questions.length).fill(-1));
         setMarked(new Array(data.questions.length).fill(false));
-        if (data.time_limit_seconds > 0) setRemaining(data.time_limit_seconds);
-        startRef.current = Date.now();
       })
       .catch((err) =>
         setError(err.response?.data?.detail || "Failed to load quiz")
@@ -78,6 +77,8 @@ export default function TakeQuiz() {
   }, [remaining]);
 
   useEffect(() => {
+    if (!hasStarted) return;
+
     const handleTabLeave = () => {
       if (submittedRef.current) return;
 
@@ -103,7 +104,7 @@ export default function TakeQuiz() {
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("blur", handleTabLeave);
     };
-  }, []);
+  }, [hasStarted]);
 
   const choose = (oi) =>
     setAnswers((prev) => prev.map((a, i) => (i === current ? oi : a)));
@@ -145,8 +146,38 @@ export default function TakeQuiz() {
     submit(false);
   };
 
+  const startQuiz = () => {
+    setHasStarted(true);
+    setTabWarning("");
+    setError("");
+    setTabSwitchCount(0);
+    tabSwitchCountRef.current = 0;
+    startRef.current = Date.now();
+    if (quiz?.time_limit_seconds > 0) setRemaining(quiz.time_limit_seconds);
+  };
+
   if (error && !quiz) return <div className="container error">{error}</div>;
   if (!quiz) return <div className="container">Loading…</div>;
+
+  if (!hasStarted) {
+    return (
+      <div className="container narrow">
+        <div className="card">
+          <h1>{quiz.title}</h1>
+          <div className="tab-warning" role="alert">
+            <span>⚠️</span>
+            <span>Do not switch tabs during the test. If you leave the tab, the quiz will be auto-submitted.</span>
+          </div>
+          <p className="muted">
+            You will have {quiz.time_limit_seconds > 0 ? `${quiz.time_limit_seconds} seconds` : "no time limit"} to complete this quiz.
+          </p>
+          <button className="btn btn-lg" onClick={startQuiz} style={{ width: "100%" }}>
+            Start Quiz
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const q = quiz.questions[current];
 
