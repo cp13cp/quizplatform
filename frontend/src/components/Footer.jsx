@@ -15,6 +15,14 @@ export default function Footer() {
           <Link to="/login">Login</Link>
         </div>
 
+        <div className="footer-contact">
+          <strong>Contact Us</strong>
+          <a href="mailto:track4uhelp@gmail.com">track4uhelp@gmail.com</a>
+          <a href="tel:+919399693204">+91 93996 93204</a>
+          <span>Based in Hyderabad, India (Fully Remote)</span>
+          <span>Mon - Sat, 9:00 AM - 6:00 PM</span>
+        </div>
+
         <div className="footer-meta">© {new Date().getFullYear()} Track4u</div>
       </div>
     </footer>
