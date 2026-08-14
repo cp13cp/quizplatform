@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import Footer from "./components/Footer.jsx";
 import Navbar from "./components/Navbar.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import AdminCreate from "./pages/AdminCreate.jsx";
@@ -29,103 +30,108 @@ export default function App() {
   const { user } = useAuth();
   return (
     <>
-      <Navbar />
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <Navigate to={user?.role === "admin" ? "/admin" : "/quizzes"} replace />
-          }
-        />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+      <div className="app-shell">
+        <Navbar />
+        <main className="page-main">
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <Navigate to={user?.role === "admin" ? "/admin" : "/quizzes"} replace />
+              }
+            />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
-        <Route
-          path="/quizzes"
-          element={
-            <Protected>
-              <Quizzes />
-            </Protected>
-          }
-        />
-        <Route
-          path="/quizzes/:id"
-          element={
-            <Protected>
-              <TakeQuiz />
-            </Protected>
-          }
-        />
-        <Route
-          path="/result"
-          element={
-            <Protected>
-              <Result />
-            </Protected>
-          }
-        />
-        <Route
-          path="/notes"
-          element={
-            <Protected>
-              <Notes />
-            </Protected>
-          }
-        />
-        <Route
-          path="/leaderboard/:id"
-          element={
-            <Protected>
-              <Leaderboard />
-            </Protected>
-          }
-        />
-        <Route
-          path="/admin/create"
-          element={
-            <Protected adminOnly>
-              <AdminCreate />
-            </Protected>
-          }
-        />
-        <Route
-          path="/admin/paste"
-          element={
-            <Protected adminOnly>
-              <AdminCreateFromText />
-            </Protected>
-          }
-        />
+            <Route
+              path="/quizzes"
+              element={
+                <Protected>
+                  <Quizzes />
+                </Protected>
+              }
+            />
+            <Route
+              path="/quizzes/:id"
+              element={
+                <Protected>
+                  <TakeQuiz />
+                </Protected>
+              }
+            />
+            <Route
+              path="/result"
+              element={
+                <Protected>
+                  <Result />
+                </Protected>
+              }
+            />
+            <Route
+              path="/notes"
+              element={
+                <Protected>
+                  <Notes />
+                </Protected>
+              }
+            />
+            <Route
+              path="/leaderboard/:id"
+              element={
+                <Protected>
+                  <Leaderboard />
+                </Protected>
+              }
+            />
+            <Route
+              path="/admin/create"
+              element={
+                <Protected adminOnly>
+                  <AdminCreate />
+                </Protected>
+              }
+            />
+            <Route
+              path="/admin/paste"
+              element={
+                <Protected adminOnly>
+                  <AdminCreateFromText />
+                </Protected>
+              }
+            />
 
-        <Route
-          path="/admin"
-          element={
-            <Protected adminOnly>
-              <AdminDashboard />
-            </Protected>
-          }
-        />
-        <Route
-          path="/admin/upload"
-          element={
-            <Protected adminOnly>
-              <AdminUpload />
-            </Protected>
-          }
-        />
-        <Route
-          path="/admin/quizzes/:id"
-          element={
-            <Protected adminOnly>
-              <AdminQuizDetail />
-            </Protected>
-          }
-        />
+            <Route
+              path="/admin"
+              element={
+                <Protected adminOnly>
+                  <AdminDashboard />
+                </Protected>
+              }
+            />
+            <Route
+              path="/admin/upload"
+              element={
+                <Protected adminOnly>
+                  <AdminUpload />
+                </Protected>
+              }
+            />
+            <Route
+              path="/admin/quizzes/:id"
+              element={
+                <Protected adminOnly>
+                  <AdminQuizDetail />
+                </Protected>
+              }
+            />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
     </>
   );
 }
