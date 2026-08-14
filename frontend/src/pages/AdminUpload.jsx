@@ -6,6 +6,7 @@ export default function AdminUpload() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
   const [minutes, setMinutes] = useState(0);
   const [file, setFile] = useState(null);
   const [error, setError] = useState("");
@@ -23,6 +24,7 @@ export default function AdminUpload() {
     form.append("file", file);
     form.append("title", title);
     form.append("description", description);
+    form.append("category", category);
     form.append("time_limit_seconds", String(Math.round(minutes * 60)));
     try {
       const { data } = await api.post("/admin/quizzes/upload", form);
@@ -51,6 +53,13 @@ export default function AdminUpload() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
+          />
+
+          <label>Category</label>
+          <input
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="Technical, Aptitude, etc."
           />
 
           <label>Timer (minutes, 0 = no limit)</label>

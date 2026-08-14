@@ -105,6 +105,7 @@ export default function AdminCreateFromText() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
   const [minutes, setMinutes] = useState(0);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
@@ -151,7 +152,7 @@ export default function AdminCreateFromText() {
     setError("");
     try {
       const questions = parsed.map((q) => ({ text: q.text, options: q.options, correct_index: q.correct_index ?? -1 }));
-      const { data } = await api.post("/admin/quizzes", { title, description, time_limit_seconds: Math.round(minutes * 60), questions });
+      const { data } = await api.post("/admin/quizzes", { title, description, category, time_limit_seconds: Math.round(minutes * 60), questions });
       navigate(`/admin/quizzes/${data.id}`);
     } catch (err) {
       setError(err.response?.data?.detail || "Create failed");
@@ -171,6 +172,9 @@ export default function AdminCreateFromText() {
 
           <label>Description</label>
           <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+
+          <label>Category</label>
+          <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Technical, Aptitude, etc." />
 
           <label>Timer (minutes, 0 = no limit)</label>
           <input type="number" min={0} step={0.5} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} />

@@ -123,6 +123,7 @@ async def upload_quiz_pdf(
     file: UploadFile = File(...),
     title: str = Form(...),
     description: str = Form(""),
+    category: str = Form(""),
     time_limit_seconds: int = Form(0),
     admin: dict = Depends(require_admin),
 ):
@@ -145,6 +146,7 @@ async def upload_quiz_pdf(
     doc = {
         "title": title,
         "description": description,
+        "category": (category or "").strip(),
         "time_limit_seconds": max(0, time_limit_seconds),
         "questions": questions,
         "is_published": True,
@@ -174,6 +176,7 @@ async def create_quiz(payload: QuizCreate, admin: dict = Depends(require_admin))
     doc = {
         "title": payload.title,
         "description": payload.description,
+        "category": (payload.category or "").strip(),
         "time_limit_seconds": max(0, payload.time_limit_seconds),
         "questions": questions,
         "is_published": True,
@@ -189,6 +192,7 @@ async def create_quiz(payload: QuizCreate, admin: dict = Depends(require_admin))
 class QuizTextCreate(BaseModel):
     title: str
     description: str | None = None
+    category: str | None = None
     time_limit_seconds: int | None = 0
     text: str
 
@@ -258,6 +262,7 @@ async def create_quiz_from_text(payload: QuizTextCreate, admin: dict = Depends(r
     doc = {
         "title": payload.title,
         "description": payload.description or "",
+        "category": (payload.category or "").strip(),
         "time_limit_seconds": max(0, int(payload.time_limit_seconds or 0)),
         "questions": questions,
         "is_published": True,

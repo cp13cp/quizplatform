@@ -215,6 +215,8 @@ export default function Quizzes() {
   ];
 
   const getQuizCategory = (quiz) => {
+    const category = (quiz.category || "").trim().toLowerCase();
+    if (category) return category;
     const text = `${quiz.title || ""} ${quiz.description || ""}`.toLowerCase();
     return text.includes("aptitude") ? "aptitude" : "technical";
   };

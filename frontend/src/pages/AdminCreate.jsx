@@ -6,6 +6,7 @@ export default function AdminCreate() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
   const [minutes, setMinutes] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -18,6 +19,7 @@ export default function AdminCreate() {
       const { data } = await api.post("/admin/quizzes", {
         title,
         description,
+        category,
         time_limit_seconds: Math.round(minutes * 60),
         questions: [],
       });
@@ -47,6 +49,13 @@ export default function AdminCreate() {
             rows={2}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+          />
+
+          <label>Category</label>
+          <input
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="Technical, Aptitude, etc."
           />
 
           <label>Timer (minutes, 0 = no limit)</label>

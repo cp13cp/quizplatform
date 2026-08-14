@@ -105,6 +105,7 @@ class QuestionPublic(BaseModel):
 class QuizCreate(BaseModel):
     title: str
     description: str = ""
+    category: str = ""
     time_limit_seconds: int = Field(default=0, ge=0)
     questions: list[Question] = []
 
@@ -112,6 +113,7 @@ class QuizCreate(BaseModel):
 class QuizUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
+    category: str | None = None
     time_limit_seconds: int | None = Field(default=None, ge=0)
     is_published: bool | None = None
 
@@ -120,6 +122,7 @@ class QuizSummary(BaseModel):
     id: str
     title: str
     description: str
+    category: str = ""
     time_limit_seconds: int
     question_count: int
     is_published: bool
@@ -130,6 +133,7 @@ class QuizForTaking(BaseModel):
     id: str
     title: str
     description: str
+    category: str = ""
     time_limit_seconds: int
     questions: list[QuestionPublic]
 

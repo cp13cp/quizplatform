@@ -24,6 +24,7 @@ def quiz_summary(quiz: dict) -> QuizSummary:
         id=str(quiz["_id"]),
         title=quiz["title"],
         description=quiz.get("description", ""),
+        category=(quiz.get("category") or "").strip(),
         time_limit_seconds=quiz.get("time_limit_seconds", 0),
         question_count=len(quiz.get("questions", [])),
         is_published=quiz.get("is_published", False),
@@ -65,6 +66,7 @@ async def get_quiz_for_taking(quiz_id: str, user: dict = Depends(get_current_use
         id=str(quiz["_id"]),
         title=quiz["title"],
         description=quiz.get("description", ""),
+        category=(quiz.get("category") or "").strip(),
         time_limit_seconds=quiz.get("time_limit_seconds", 0),
         questions=[
             QuestionPublic(text=q["text"], options=q["options"])
