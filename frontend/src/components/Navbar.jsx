@@ -11,12 +11,12 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="navbar">
+    <nav className="navbar landing-nav">
       <Link to="/" className="brand">
         <img src="/logo.svg" alt="Track4u Logo" className="logo-img" />
         <span>Track4u</span>
       </Link>
-      
+
       <div className="nav-links">
         {user ? (
           <>
@@ -41,8 +41,8 @@ export default function Navbar() {
           </>
         ) : (
           <>
-            <Link to="/login">Login</Link>
-            <Link to="/register">Register</Link>
+            <Link to="/login" className="nav-link-pill">Login</Link>
+            <Link to="/register" className="nav-link-pill nav-link-pill-primary">Register</Link>
           </>
         )}
       </div>

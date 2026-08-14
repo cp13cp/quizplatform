@@ -8,6 +8,7 @@ import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminQuizDetail from "./pages/AdminQuizDetail.jsx";
 import AdminUpload from "./pages/AdminUpload.jsx";
 import Leaderboard from "./pages/Leaderboard.jsx";
+import HomePage from "./pages/HomePage.jsx";
 import Login from "./pages/Login.jsx";
 import Notes from "./pages/Notes.jsx";
 import Quizzes from "./pages/Quizzes.jsx";
@@ -37,7 +38,11 @@ export default function App() {
             <Route
               path="/"
               element={
-                <Navigate to={user?.role === "admin" ? "/admin" : "/quizzes"} replace />
+                user ? (
+                  <Navigate to={user.role === "admin" ? "/admin" : "/quizzes"} replace />
+                ) : (
+                  <HomePage />
+                )
               }
             />
             <Route path="/login" element={<Login />} />
