@@ -57,14 +57,7 @@ export default function App() {
             <Route path="/courses" element={<Courses />} />
             <Route path="/courses/:courseSlug" element={<CourseDetails />} />
 
-            <Route
-              path="/quizzes"
-              element={
-                <Protected>
-                  <Quizzes />
-                </Protected>
-              }
-            />
+            <Route path="/quizzes" element={<Quizzes />} />
             <Route
               path="/quizzes/:id"
               element={
@@ -81,14 +74,7 @@ export default function App() {
                 </Protected>
               }
             />
-            <Route
-              path="/notes"
-              element={
-                <Protected>
-                  <Notes />
-                </Protected>
-              }
-            />
+            <Route path="/notes" element={<Notes />} />
             <Route
               path="/leaderboard/:id"
               element={

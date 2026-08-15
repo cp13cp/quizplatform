@@ -60,6 +60,8 @@ export default function Navbar() {
         ) : (
           <>
             <Link to="/course-programs" onClick={closeMenu}>Courses</Link>
+            <Link to="/quizzes" onClick={closeMenu}>Quizzes</Link>
+            <Link to="/notes" onClick={closeMenu}>Notes</Link>
             <Link to="/login" className="nav-btn nav-btn-light" onClick={closeMenu}>
               Login
             </Link>
