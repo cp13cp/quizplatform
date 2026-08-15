@@ -10,6 +10,7 @@ export default function HomePage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showLoginCard, setShowLoginCard] = useState(true);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -38,46 +39,67 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="hero-card hero-login-card">
-          <h2>Login</h2>
+        {showLoginCard ? (
+          <div className="hero-card hero-login-card">
+            <button
+              type="button"
+              className="hero-close-btn"
+              aria-label="Close login card"
+              onClick={() => setShowLoginCard(false)}
+            >
+              ×
+            </button>
 
-          <form className="signup-form" onSubmit={submit}>
-            <input
-              type="email"
-              placeholder="Email Id"
-              aria-label="Email Id"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <div className="password-field">
+            <h2>Login</h2>
+
+            <form className="signup-form" onSubmit={submit}>
               <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                aria-label="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                type="email"
+                placeholder="Email Id"
+                aria-label="Email Id"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              <button
-                type="button"
-                className="password-toggle"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                title={showPassword ? "Hide password" : "Show password"}
-                onClick={() => setShowPassword((visible) => !visible)}
-              />
-            </div>
-            {error && <p className="error">{error}</p>}
-            <button type="submit" className="start-btn" disabled={busy}>
-              {busy ? "Logging in…" : "Login"}
-            </button>
-          </form>
+              <div className="password-field">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  aria-label="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  title={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                />
+              </div>
+              {error && <p className="error">{error}</p>}
+              <button type="submit" className="start-btn" disabled={busy}>
+                {busy ? "Logging in…" : "Login"}
+              </button>
+            </form>
 
-          <div className="login-footer-row">
-            <span>New here?</span>
-            <Link to="/register" className="register-link">Register</Link>
+            <div className="login-footer-row">
+              <span>New here?</span>
+              <Link to="/register" className="register-link">Register</Link>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="hero-card hero-login-card hero-card-collapsed">
+            <button
+              type="button"
+              className="hero-open-btn"
+              onClick={() => setShowLoginCard(true)}
+            >
+              Login
+            </button>
+          </div>
+        )}
         </div>
       </section>
 

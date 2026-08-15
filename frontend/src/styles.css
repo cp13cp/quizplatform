@@ -138,6 +138,41 @@ a {
   border-radius: 24px;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
   padding: 1.4rem 1.3rem 1.1rem;
+  position: relative;
+}
+.hero-close-btn {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.75rem;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: rgba(15, 23, 42, 0.06);
+  border-radius: 50%;
+  color: #0f172a;
+  font-size: 1.7rem;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.hero-open-btn {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1aa7a1, #0f8e9d);
+  color: white;
+  font-size: 1.15rem;
+  font-weight: 800;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+}
+.hero-card-collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9rem;
 }
 .hero-login-card h2 {
   margin: 0 0 1.3rem;
