@@ -1230,6 +1230,70 @@ code {
   transform: translateX(2px);
 }
 
+@media (max-width: 900px) {
+  .hero-section {
+    padding: 1.5rem 1rem 1.25rem;
+    min-height: auto;
+  }
+
+  .hero-content {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    min-height: auto;
+  }
+
+  .hero-copy {
+    padding-left: 0;
+    text-align: center;
+  }
+
+  .hero-copy p {
+    max-width: 100%;
+  }
+
+  .hero-card {
+    justify-self: center;
+    width: min(100%, 480px);
+  }
+
+  .why-choose-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero-copy h1 {
+    font-size: clamp(2.2rem, 12vw, 4rem);
+    letter-spacing: -0.06em;
+  }
+
+  .hero-copy p {
+    font-size: 1rem;
+  }
+
+  .hero-login-card h2 {
+    font-size: clamp(2rem, 9vw, 3rem);
+  }
+
+  .hero-card {
+    padding: 1rem 0.9rem;
+    border-radius: 18px;
+  }
+
+  .signup-form input,
+  .start-btn {
+    font-size: 1rem;
+  }
+
+  .section-heading h2 {
+    font-size: clamp(1.9rem, 9vw, 2.7rem);
+  }
+
+  .why-choose-section {
+    padding: 2rem 1rem 3rem;
+  }
+}
+
 /* ========== RESPONSIVE DESIGN ========== */
 
 /* Tablets (768px and below) */
