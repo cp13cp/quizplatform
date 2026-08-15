@@ -6,63 +6,40 @@ import { useAuth } from "../context/AuthContext.jsx";
 export default function CoursePrograms() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [courses, setCourses] = useState([
-    {
-      id: 1,
-      label: "COURSE 01",
-      title: "Python Full Stack + AI",
-      price: "₹9,999",
-      priceAmount: 999900,
-      duration: "2 Months",
-      schedule: "2 Hours Daily",
-      type: "Live Projects",
-      features: [
-        "Python backend + APIs",
-        "Frontend integration",
-        "AI fundamentals",
-        "Career-ready portfolio"
-      ],
-      color: "#e8f5e9"
-    },
-    {
-      id: 2,
-      label: "COURSE 02",
-      title: "MERN Full Stack + AI",
-      price: "₹9,999",
-      priceAmount: 999900,
-      duration: "2 Months",
-      schedule: "2 Hours Daily",
-      type: "Live Projects",
-      features: [
-        "MongoDB, Express, React, Node.js",
-        "Modern UI development",
-        "AI-powered app building",
-        "Placement guidance"
-      ],
-      color: "#e3f2fd"
-    },
-    {
-      id: 3,
-      label: "COURSE 03",
-      title: "Artificial Intelligence",
-      price: "₹9,999",
-      priceAmount: 999900,
-      duration: "2 Months",
-      schedule: "2 Hours Daily",
-      type: "Live Projects",
-      features: [
-        "AI concepts and workflows",
-        "Python for AI projects",
-        "Model basics and automation",
-        "Industry project exposure"
-      ],
-      color: "#fce4ec"
-    }
-  ]);
-
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState({});
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Load courses from API
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        const { data } = await api.get("/payments/courses");
+        const formattedCourses = data.map((course, idx) => ({
+          id: course.id,
+          label: `COURSE ${idx + 1}`,
+          title: course.title,
+          price: `₹${course.price_rupees.toLocaleString('en-IN')}`,
+          priceAmount: course.price_rupees * 100, // Convert to paise for Razorpay
+          duration: course.duration,
+          schedule: course.schedule,
+          type: "Live Projects",
+          features: course.features || [],
+          color: course.color || "#e8f5e9"
+        }));
+        setCourses(formattedCourses);
+      } catch (err) {
+        console.error("Failed to load courses:", err);
+        setError("Could not load courses. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCourses();
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -156,7 +133,12 @@ export default function CoursePrograms() {
         {success && <p className="banner success">{success}</p>}
         {error && <p className="banner warn">{error}</p>}
 
-        <div className="course-programs-grid">
+        {loading ? (
+          <div className="loading-spinner"></div>
+        ) : courses.length === 0 ? (
+          <p className="muted">No courses available at the moment. Please check back soon!</p>
+        ) : (
+          <div className="course-programs-grid">
           {courses.map((course) => (
             <div 
               className="course-program-card" 
@@ -199,7 +181,8 @@ export default function CoursePrograms() {
               </button>
             </div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

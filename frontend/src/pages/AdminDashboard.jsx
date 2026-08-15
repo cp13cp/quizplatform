@@ -63,6 +63,9 @@ export default function AdminDashboard() {
           <Link className="btn" to="/admin/upload">
             + Upload PDF
           </Link>
+          <Link className="btn" to="/admin/courses">
+            📚 Manage Courses
+          </Link>
         </div>
       </div>
 

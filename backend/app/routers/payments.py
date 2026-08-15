@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..config import get_settings
 from ..database import get_db
-from ..models import AccessStatus, PaymentOrderOut, PaymentVerify
+from ..models import AccessStatus, CourseForCatalog, PaymentOrderOut, PaymentVerify
 from ..security import get_current_user
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -255,3 +255,24 @@ async def verify_course_payment(payload: dict, user: dict = Depends(get_current_
         )
 
     return {"message": f"Successfully enrolled in course {payment.get('course_title')}", "status": "success"}
+
+
+@router.get("/courses", response_model=list[CourseForCatalog])
+async def list_active_courses():
+    """Get all active courses for public catalog (no authentication required)."""
+    db = get_db()
+    cursor = db.courses.find({"is_active": True}).sort("created_at", -1)
+    courses = [
+        CourseForCatalog(
+            id=str(course["_id"]),
+            title=course["title"],
+            overview=course["overview"],
+            duration=course.get("duration", ""),
+            schedule=course.get("schedule", ""),
+            price_rupees=course.get("price_rupees", 0),
+            features=course.get("features", []),
+            color=course.get("color", "#e8f5e9"),
+        )
+        async for course in cursor
+    ]
+    return courses

@@ -11,6 +11,10 @@ from ..models import (
     AdminAccessUser,
     AttemptResult,
     AttemptSummary,
+    CourseCreate,
+    CourseForCatalog,
+    CourseSummary,
+    CourseUpdate,
     Question,
     QuizAdminDetail,
     QuizCreate,
@@ -469,3 +473,116 @@ async def attempt_detail(attempt_id: str, admin: dict = Depends(require_admin)):
         submitted_at=attempt["submitted_at"],
         review=review,
     )
+
+
+# ---------- COURSE MANAGEMENT ----------
+
+
+def _course_summary(course: dict) -> CourseSummary:
+    """Convert MongoDB course document to CourseSummary response."""
+    return CourseSummary(
+        id=str(course["_id"]),
+        title=course["title"],
+        overview=course["overview"],
+        duration=course.get("duration", ""),
+        schedule=course.get("schedule", ""),
+        price_rupees=course.get("price_rupees", 0),
+        features=course.get("features", []),
+        color=course.get("color", "#e8f5e9"),
+        is_active=course.get("is_active", True),
+        created_at=course.get("created_at", datetime.now(timezone.utc)),
+        updated_at=course.get("updated_at"),
+    )
+
+
+def _get_course(course_id: str, db) -> dict:
+    """Retrieve course by ID or raise 404."""
+    from bson.errors import InvalidId
+    
+    try:
+        course = db.courses.find_one({"_id": ObjectId(course_id)})
+    except (InvalidId, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid course ID")
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return course
+
+
+@router.post("/courses", response_model=CourseSummary)
+async def create_course(
+    payload: CourseCreate,
+    admin: dict = Depends(require_admin)
+):
+    """Create a new course (admin only)."""
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    
+    course_doc = {
+        "title": payload.title,
+        "overview": payload.overview,
+        "duration": payload.duration,
+        "schedule": payload.schedule,
+        "price_rupees": payload.price_rupees,
+        "features": payload.features,
+        "color": payload.color,
+        "is_active": payload.is_active,
+        "created_at": now,
+        "updated_at": None,
+    }
+    
+    result = db.courses.insert_one(course_doc)
+    course_doc["_id"] = result.inserted_id
+    return _course_summary(course_doc)
+
+
+@router.get("/courses", response_model=list[CourseSummary])
+async def list_courses(admin: dict = Depends(require_admin)):
+    """List all courses (admin only)."""
+    db = get_db()
+    cursor = db.courses.find({}).sort("created_at", -1)
+    return [_course_summary(course) async for course in cursor]
+
+
+@router.get("/courses/{course_id}", response_model=CourseSummary)
+async def get_course(course_id: str, admin: dict = Depends(require_admin)):
+    """Get single course detail (admin only)."""
+    db = get_db()
+    course = _get_course(course_id, db)
+    return _course_summary(course)
+
+
+@router.patch("/courses/{course_id}", response_model=CourseSummary)
+async def update_course(
+    course_id: str,
+    payload: CourseUpdate,
+    admin: dict = Depends(require_admin)
+):
+    """Update course fields selectively (admin only)."""
+    db = get_db()
+    course = _get_course(course_id, db)
+    
+    update_data = payload.model_dump(exclude_unset=True)
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    db.courses.update_one(
+        {"_id": ObjectId(course_id)},
+        {"$set": update_data}
+    )
+    
+    updated = db.courses.find_one({"_id": ObjectId(course_id)})
+    return _course_summary(updated)
+
+
+@router.delete("/courses/{course_id}")
+async def delete_course(course_id: str, admin: dict = Depends(require_admin)):
+    """Delete course permanently (admin only)."""
+    db = get_db()
+    course = _get_course(course_id, db)
+    
+    result = db.courses.delete_one({"_id": ObjectId(course_id)})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    return {"message": "Course deleted successfully"}

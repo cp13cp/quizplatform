@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import AdminCreate from "./pages/AdminCreate.jsx";
 import AdminCreateFromText from "./pages/AdminCreateFromText.jsx";
+import AdminCoursesManagement from "./pages/AdminCoursesManagement.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminQuizDetail from "./pages/AdminQuizDetail.jsx";
 import AdminUpload from "./pages/AdminUpload.jsx";
@@ -134,6 +135,14 @@ export default function App() {
               element={
                 <Protected adminOnly>
                   <AdminQuizDetail />
+                </Protected>
+              }
+            />
+            <Route
+              path="/admin/courses"
+              element={
+                <Protected adminOnly>
+                  <AdminCoursesManagement />
                 </Protected>
               }
             />

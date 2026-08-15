@@ -150,6 +150,56 @@ class NoteUpdate(BaseModel):
     price_rupees: int | None = Field(default=None, ge=0)
 
 
+# ---------- Courses ----------
+
+
+class CourseCreate(BaseModel):
+    title: str
+    overview: str
+    duration: str = "2 Months"
+    schedule: str = "2 Hours Daily"
+    price_rupees: int = 9999
+    features: list[str] = []
+    color: str = "#e8f5e9"
+    is_active: bool = True
+
+
+class CourseUpdate(BaseModel):
+    title: str | None = None
+    overview: str | None = None
+    duration: str | None = None
+    schedule: str | None = None
+    price_rupees: int | None = None
+    features: list[str] | None = None
+    color: str | None = None
+    is_active: bool | None = None
+
+
+class CourseSummary(BaseModel):
+    id: str
+    title: str
+    overview: str
+    duration: str
+    schedule: str
+    price_rupees: int
+    features: list[str]
+    color: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+class CourseForCatalog(BaseModel):
+    id: str
+    title: str
+    overview: str
+    duration: str
+    schedule: str
+    price_rupees: int
+    features: list[str]
+    color: str
+
+
 class NoteSummary(BaseModel):
     id: str
     title: str
