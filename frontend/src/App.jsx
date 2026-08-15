@@ -17,6 +17,9 @@ import Result from "./pages/Result.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
 import TakeQuiz from "./pages/TakeQuiz.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
+import Courses from "./pages/Courses.jsx";
+import CourseDetails from "./pages/CourseDetails.jsx";
+import CoursePrograms from "./pages/CoursePrograms.jsx";
 
 function Protected({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -49,6 +52,9 @@ export default function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/course-programs" element={<CoursePrograms />} />
+            <Route path="/courses" element={<Courses />} />
+            <Route path="/courses/:courseSlug" element={<CourseDetails />} />
 
             <Route
               path="/quizzes"

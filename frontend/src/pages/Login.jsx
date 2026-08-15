@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -17,7 +18,16 @@ export default function Login() {
     setBusy(true);
     try {
       const u = await login(email, password);
-      navigate(u.role === "admin" ? "/admin" : "/quizzes");
+      const pendingCourse = sessionStorage.getItem("pendingCourse");
+      const routeState = location.state || {};
+      const nextPath = routeState.returnTo || new URLSearchParams(location.search).get("next") || "/course-programs";
+
+      if (pendingCourse || routeState.pendingCourse || nextPath) {
+        sessionStorage.removeItem("pendingCourse");
+        navigate(nextPath);
+      } else {
+        navigate(u.role === "admin" ? "/admin" : "/quizzes");
+      }
     } catch (err) {
       setError(err.response?.data?.detail || "Login failed");
     } finally {

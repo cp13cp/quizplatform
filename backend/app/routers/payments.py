@@ -17,6 +17,19 @@ from ..security import get_current_user
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
+def _razorpay_error_detail(exc):
+    try:
+        payload = exc.read().decode()
+        data = json.loads(payload)
+        error = data.get("error", {})
+        description = error.get("description") or error.get("code") or "Could not create payment order"
+        if "Authentication failed" in description or "authentication" in description.lower():
+            return "Razorpay authentication failed. Update RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in backend/.env with valid test keys."
+        return description
+    except Exception:
+        return "Could not create payment order"
+
+
 def _normalize_expiry(value):
     if value is None:
         return None
@@ -56,10 +69,11 @@ def _access_status(user: dict) -> AccessStatus:
 
 
 async def require_active_access(user: dict = Depends(get_current_user)) -> dict:
-    if not _access_status(user).active:
+    status = _access_status(user)
+    if not status.active:
         raise HTTPException(
             status_code=402,
-            detail="Test access is locked. Pay ₹199 to unlock it for 30 days.",
+            detail=f"Test access is locked. Pay ₹{status.price_rupees} to unlock it for {status.duration_days} days.",
         )
     return user
 
@@ -98,8 +112,10 @@ async def create_order(user: dict = Depends(get_current_user)):
     try:
         with urlopen(request, timeout=15) as response:
             order = json.loads(response.read().decode())
-    except (HTTPError, URLError, TimeoutError) as exc:
-        raise HTTPException(status_code=502, detail="Could not create payment order") from exc
+    except HTTPError as exc:
+        raise HTTPException(status_code=401, detail=_razorpay_error_detail(exc)) from exc
+    except (URLError, TimeoutError) as exc:
+        raise HTTPException(status_code=502, detail="Razorpay server is unreachable from this machine") from exc
 
     await get_db().payments.insert_one({
         "user_id": user["_id"], "order_id": order["id"], "receipt": receipt,
@@ -112,6 +128,8 @@ async def create_order(user: dict = Depends(get_current_user)):
 @router.post("/verify", response_model=AccessStatus)
 async def verify_payment(payload: PaymentVerify, user: dict = Depends(get_current_user)):
     settings = get_settings()
+    if not settings.razorpay_key_secret:
+        raise HTTPException(status_code=503, detail="Payments are not configured yet")
     expected = hmac.new(
         settings.razorpay_key_secret.encode(),
         f"{payload.razorpay_order_id}|{payload.razorpay_payment_id}".encode(),
@@ -128,7 +146,9 @@ async def verify_payment(payload: PaymentVerify, user: dict = Depends(get_curren
         raise HTTPException(status_code=404, detail="Payment order not found")
     if payment.get("status") != "paid":
         now = datetime.now(timezone.utc)
-        expires_at = now + timedelta(days=settings.subscription_days)
+        current_expiry = _normalize_expiry(user.get("access_expires_at"))
+        start_time = current_expiry if current_expiry and current_expiry > now else now
+        expires_at = start_time + timedelta(days=settings.subscription_days)
         await db.payments.update_one({"_id": payment["_id"]}, {"$set": {
             "status": "paid", "payment_id": payload.razorpay_payment_id,
             "paid_at": now, "access_expires_at": expires_at,
@@ -138,3 +158,100 @@ async def verify_payment(payload: PaymentVerify, user: dict = Depends(get_curren
     else:
         user = await db.users.find_one({"_id": user["_id"]})
     return _access_status(user)
+
+
+@router.post("/course-order", response_model=PaymentOrderOut)
+async def create_course_order(
+    payload: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Create a Razorpay order for course purchase"""
+    settings = get_settings()
+    if not settings.razorpay_key_id or not settings.razorpay_key_secret:
+        raise HTTPException(status_code=503, detail="Payments are not configured yet")
+
+    course_id = payload.get("course_id")
+    course_title = payload.get("course_title")
+    amount = payload.get("amount")  # in paise
+
+    if not course_id or not amount:
+        raise HTTPException(status_code=400, detail="Missing course_id or amount")
+
+    receipt = f"course_{course_id}_{str(user['_id'])[-8:]}_{secrets.token_hex(5)}"
+    request_body = json.dumps({
+        "amount": amount,
+        "currency": "INR",
+        "receipt": receipt,
+        "notes": {"user_id": str(user["_id"]), "course_id": course_id, "course_title": course_title},
+    }).encode()
+    credentials = base64.b64encode(
+        f"{settings.razorpay_key_id}:{settings.razorpay_key_secret}".encode()
+    ).decode()
+    request = Request(
+        "https://api.razorpay.com/v1/orders",
+        data=request_body,
+        headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            order = json.loads(response.read().decode())
+    except HTTPError as exc:
+        raise HTTPException(status_code=401, detail=_razorpay_error_detail(exc)) from exc
+    except (URLError, TimeoutError) as exc:
+        raise HTTPException(status_code=502, detail="Razorpay server is unreachable from this machine") from exc
+
+    await get_db().payments.insert_one({
+        "user_id": user["_id"], "order_id": order["id"], "receipt": receipt,
+        "amount": amount, "currency": "INR", "course_id": course_id, "course_title": course_title,
+        "status": "created", "created_at": datetime.now(timezone.utc),
+    })
+    return PaymentOrderOut(key_id=settings.razorpay_key_id, order_id=order["id"], amount=order["amount"])
+
+
+@router.post("/verify-course")
+async def verify_course_payment(payload: dict, user: dict = Depends(get_current_user)):
+    """Verify course payment and enroll user"""
+    settings = get_settings()
+    if not settings.razorpay_key_secret:
+        raise HTTPException(status_code=503, detail="Payments are not configured yet")
+
+    order_id = payload.get("razorpay_order_id")
+    payment_id = payload.get("razorpay_payment_id")
+    signature = payload.get("razorpay_signature", "")
+
+    if not order_id or not payment_id or not signature:
+        raise HTTPException(status_code=400, detail="Missing payment details")
+
+    expected = hmac.new(
+        settings.razorpay_key_secret.encode(),
+        f"{order_id}|{payment_id}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(expected, signature):
+        raise HTTPException(status_code=400, detail="Payment verification failed")
+
+    db = get_db()
+    payment = await db.payments.find_one({
+        "order_id": order_id, "user_id": user["_id"]
+    })
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment order not found")
+
+    if payment.get("status") != "paid":
+        now = datetime.now(timezone.utc)
+        course_id = payment.get("course_id")
+
+        # Update payment status
+        await db.payments.update_one({"_id": payment["_id"]}, {"$set": {
+            "status": "paid", "payment_id": payment_id,
+            "paid_at": now,
+        }})
+
+        # Add course to user's enrolled_courses
+        await db.users.update_one(
+            {"_id": user["_id"]},
+            {"$addToSet": {"enrolled_courses": course_id}}
+        )
+
+    return {"message": f"Successfully enrolled in course {payment.get('course_title')}", "status": "success"}

@@ -149,14 +149,9 @@ async def forgot_password(payload: PasswordResetRequest):
         return response
 
     settings = get_settings()
-    if not all(
-        [
-            settings.email_host,
-            settings.email_user,
-            settings.email_password,
-            settings.email_from,
-        ]
-    ):
+    has_sendgrid = bool(settings.sendgrid_api_key)
+    has_smtp = all([settings.email_host, settings.email_user, settings.email_password])
+    if not settings.email_from or not (has_sendgrid or has_smtp):
         raise HTTPException(status_code=500, detail="Email service is not configured")
 
     token = secrets.token_urlsafe(32)

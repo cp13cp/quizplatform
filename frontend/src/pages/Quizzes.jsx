@@ -232,19 +232,6 @@ export default function Quizzes() {
 
   return (
     <div className="container">
-      <h1>Dashboard</h1>
-      <div className="stats">
-        {stats.map((s) => (
-          <div className="stat-card" key={s.label}>
-            <div className="stat-icon">{s.icon}</div>
-            <div>
-              <div className="stat-value">{s.value}</div>
-              <div className="stat-label">{s.label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
       <h1>Available Quizzes</h1>
       {access && !access.active && (
         <div className="banner warn access-banner">
