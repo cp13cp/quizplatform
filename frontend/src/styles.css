@@ -71,6 +71,37 @@ a {
 .nav-links a:hover {
   opacity: 0.8;
 }
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.28rem;
+  width: 2.7rem;
+  height: 2.7rem;
+  padding: 0.45rem;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.nav-toggle span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: #1f2937;
+  border-radius: 999px;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.nav-toggle.open span:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+.nav-toggle.open span:nth-child(2) {
+  opacity: 0;
+}
+.nav-toggle.open span:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
 .nav-btn {
   display: inline-flex;
   align-items: center;
@@ -1334,6 +1365,8 @@ code {
 /* Tablets (768px and below) */
 @media (max-width: 768px) {
   .navbar {
+    position: sticky;
+    top: 0;
     padding: 0.75rem 1rem;
   }
 
@@ -1341,8 +1374,44 @@ code {
     font-size: 1.5rem;
   }
 
+  .nav-toggle {
+    display: flex;
+  }
+
   .nav-links {
-    gap: 0.5rem;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    padding: 0 1rem;
+    background: rgba(255, 255, 255, 0.98);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    z-index: 40;
+    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.25s ease;
+  }
+
+  .nav-links.open {
+    max-height: 420px;
+    opacity: 1;
+    pointer-events: auto;
+    padding: 0.85rem 1rem 1rem;
+  }
+
+  .nav-links a,
+  .nav-btn,
+  .nav-user,
+  .btn-link {
+    width: 100%;
+    text-align: center;
   }
 
   .nav-btn {
@@ -1444,7 +1513,6 @@ code {
 /* Mobile (480px and below) */
 @media (max-width: 480px) {
   .navbar {
-    flex-direction: column;
     gap: 0.75rem;
     padding: 0.5rem 0.75rem;
   }
@@ -1454,9 +1522,7 @@ code {
   }
 
   .nav-links {
-    flex-direction: column;
-    width: 100%;
-    gap: 0.5rem;
+    padding: 0.75rem 0.75rem 1rem;
   }
 
   .nav-links a,
