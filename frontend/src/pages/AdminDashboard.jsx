@@ -66,6 +66,12 @@ export default function AdminDashboard() {
           <Link className="btn" to="/admin/courses">
             📚 Manage Courses
           </Link>
+          <Link className="btn" to="/admin/subscriptions">
+            💳 Manage Subscriptions
+          </Link>
+          <Link className="btn" to="/admin/pricing">
+            💰 Pricing Config
+          </Link>
         </div>
       </div>
 

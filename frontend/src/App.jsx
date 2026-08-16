@@ -8,6 +8,8 @@ import AdminCoursesManagement from "./pages/AdminCoursesManagement.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminQuizDetail from "./pages/AdminQuizDetail.jsx";
 import AdminUpload from "./pages/AdminUpload.jsx";
+import AdminSubscriptions from "./pages/AdminSubscriptions.jsx";
+import AdminPricing from "./pages/AdminPricing.jsx";
 import Leaderboard from "./pages/Leaderboard.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import Login from "./pages/Login.jsx";
@@ -129,6 +131,22 @@ export default function App() {
               element={
                 <Protected adminOnly>
                   <AdminCoursesManagement />
+                </Protected>
+              }
+            />
+            <Route
+              path="/admin/subscriptions"
+              element={
+                <Protected adminOnly>
+                  <AdminSubscriptions />
+                </Protected>
+              }
+            />
+            <Route
+              path="/admin/pricing"
+              element={
+                <Protected adminOnly>
+                  <AdminPricing />
                 </Protected>
               }
             />
