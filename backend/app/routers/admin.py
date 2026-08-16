@@ -23,6 +23,9 @@ from ..models import (
     QuizParticipationStatsDay,
     QuizSummary,
     QuizUpdate,
+    SubscriptionPlan,
+    SubscriptionPlanCreate,
+    SubscriptionPlanUpdate,
 )
 from ..pdf_parser import parse_quiz_from_pdf
 from ..security import require_admin
@@ -102,6 +105,144 @@ async def revoke_free_access(user_id: str, admin: dict = Depends(require_admin))
     )
     if not result.matched_count:
         raise HTTPException(status_code=404, detail="Student not found")
+
+
+# ---------- Subscriptions ----------
+
+
+@router.get("/subscriptions", response_model=list[SubscriptionPlan])
+async def list_subscriptions(admin: dict = Depends(require_admin)):
+    """List all subscription plans."""
+    db = get_db()
+    cursor = db.subscriptions.find({}).sort("price_rupees", 1)
+    plans = []
+    async for plan in cursor:
+        plans.append(
+            SubscriptionPlan(
+                id=str(plan["_id"]),
+                name=plan.get("name", ""),
+                description=plan.get("description", ""),
+                price_rupees=plan.get("price_rupees", 0),
+                duration_days=plan.get("duration_days", 30),
+                is_active=plan.get("is_active", True),
+                created_at=plan.get("created_at"),
+                updated_at=plan.get("updated_at"),
+            )
+        )
+    return plans
+
+
+@router.post("/subscriptions", response_model=SubscriptionPlan)
+async def create_subscription(
+    payload: SubscriptionPlanCreate, admin: dict = Depends(require_admin)
+):
+    """Create a new subscription plan."""
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    doc = {
+        "name": payload.name,
+        "description": payload.description,
+        "price_rupees": payload.price_rupees,
+        "duration_days": payload.duration_days,
+        "is_active": True,
+        "created_at": now,
+        "updated_at": now,
+        "created_by": admin["_id"],
+    }
+    result = await db.subscriptions.insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return SubscriptionPlan(
+        id=str(doc["_id"]),
+        name=doc["name"],
+        description=doc["description"],
+        price_rupees=doc["price_rupees"],
+        duration_days=doc["duration_days"],
+        is_active=doc["is_active"],
+        created_at=doc["created_at"],
+        updated_at=doc["updated_at"],
+    )
+
+
+@router.get("/subscriptions/{plan_id}", response_model=SubscriptionPlan)
+async def get_subscription(plan_id: str, admin: dict = Depends(require_admin)):
+    """Get a specific subscription plan."""
+    db = get_db()
+    try:
+        oid = ObjectId(plan_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Subscription plan not found")
+    plan = await db.subscriptions.find_one({"_id": oid})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Subscription plan not found")
+    return SubscriptionPlan(
+        id=str(plan["_id"]),
+        name=plan.get("name", ""),
+        description=plan.get("description", ""),
+        price_rupees=plan.get("price_rupees", 0),
+        duration_days=plan.get("duration_days", 30),
+        is_active=plan.get("is_active", True),
+        created_at=plan.get("created_at"),
+        updated_at=plan.get("updated_at"),
+    )
+
+
+@router.patch("/subscriptions/{plan_id}", response_model=SubscriptionPlan)
+async def update_subscription(
+    plan_id: str,
+    payload: SubscriptionPlanUpdate,
+    admin: dict = Depends(require_admin),
+):
+    """Update a subscription plan."""
+    db = get_db()
+    try:
+        oid = ObjectId(plan_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Subscription plan not found")
+    
+    plan = await db.subscriptions.find_one({"_id": oid})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Subscription plan not found")
+    
+    update_data = {}
+    if payload.name is not None:
+        update_data["name"] = payload.name
+    if payload.description is not None:
+        update_data["description"] = payload.description
+    if payload.price_rupees is not None:
+        update_data["price_rupees"] = payload.price_rupees
+    if payload.duration_days is not None:
+        update_data["duration_days"] = payload.duration_days
+    if payload.is_active is not None:
+        update_data["is_active"] = payload.is_active
+    
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.subscriptions.update_one({"_id": oid}, {"$set": update_data})
+    
+    updated_plan = await db.subscriptions.find_one({"_id": oid})
+    return SubscriptionPlan(
+        id=str(updated_plan["_id"]),
+        name=updated_plan.get("name", ""),
+        description=updated_plan.get("description", ""),
+        price_rupees=updated_plan.get("price_rupees", 0),
+        duration_days=updated_plan.get("duration_days", 30),
+        is_active=updated_plan.get("is_active", True),
+        created_at=updated_plan.get("created_at"),
+        updated_at=updated_plan.get("updated_at"),
+    )
+
+
+@router.delete("/subscriptions/{plan_id}", status_code=204)
+async def delete_subscription(plan_id: str, admin: dict = Depends(require_admin)):
+    """Delete a subscription plan."""
+    db = get_db()
+    try:
+        oid = ObjectId(plan_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Subscription plan not found")
+    result = await db.subscriptions.delete_one({"_id": oid})
+    if not result.deleted_count:
+        raise HTTPException(status_code=404, detail="Subscription plan not found")
 
 
 async def _get_quiz(quiz_id: str) -> dict:

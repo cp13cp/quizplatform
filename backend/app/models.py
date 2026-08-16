@@ -86,6 +86,35 @@ class AdminAccessUser(BaseModel):
     free_access_expires_at: datetime | None = None
 
 
+# ---------- Subscriptions ----------
+
+
+class SubscriptionPlanCreate(BaseModel):
+    name: str
+    description: str = ""
+    price_rupees: int = Field(ge=0)
+    duration_days: int = Field(ge=1)
+
+
+class SubscriptionPlanUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    price_rupees: int | None = Field(default=None, ge=0)
+    duration_days: int | None = Field(default=None, ge=1)
+    is_active: bool | None = None
+
+
+class SubscriptionPlan(BaseModel):
+    id: str
+    name: str
+    description: str
+    price_rupees: int
+    duration_days: int
+    is_active: bool = True
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
 # ---------- Quiz ----------
 
 
