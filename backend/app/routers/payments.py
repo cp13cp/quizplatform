@@ -47,8 +47,37 @@ def _normalize_expiry(value):
     return None
 
 
-def _access_status(user: dict) -> AccessStatus:
+async def _get_pricing_config():
+    """Get pricing configuration from database, with fallback to settings."""
+    db = get_db()
+    config = await db.pricing_config.find_one({})
+    if config:
+        return {
+            "price_rupees": config.get("default_price_rupees", 99),
+            "duration_days": 30,  # Default duration is 30 days
+            "discount_percentage": config.get("discount_percentage", 0),
+            "discount_active": config.get("discount_active", False),
+            "tax_percentage": config.get("tax_percentage", 0),
+        }
+    # Fallback to settings
     settings = get_settings()
+    return {
+        "price_rupees": settings.subscription_price_paise // 100,
+        "duration_days": settings.subscription_days,
+        "discount_percentage": 0,
+        "discount_active": False,
+        "tax_percentage": 0,
+    }
+
+
+def _access_status(user: dict, pricing: dict = None) -> AccessStatus:
+    if pricing is None:
+        settings = get_settings()
+        pricing = {
+            "price_rupees": settings.subscription_price_paise // 100,
+            "duration_days": settings.subscription_days,
+        }
+    
     payment_expiry = _normalize_expiry(user.get("access_expires_at"))
     free_expiry = _normalize_expiry(user.get("free_access_expires_at"))
     expires_at = None
@@ -63,13 +92,14 @@ def _access_status(user: dict) -> AccessStatus:
     return AccessStatus(
         active=active,
         expires_at=expires_at,
-        price_rupees=settings.subscription_price_paise // 100,
-        duration_days=settings.subscription_days,
+        price_rupees=pricing["price_rupees"],
+        duration_days=pricing["duration_days"],
     )
 
 
 async def require_active_access(user: dict = Depends(get_current_user)) -> dict:
-    status = _access_status(user)
+    pricing = await _get_pricing_config()
+    status = _access_status(user, pricing)
     if not status.active:
         raise HTTPException(
             status_code=402,
@@ -80,25 +110,41 @@ async def require_active_access(user: dict = Depends(get_current_user)) -> dict:
 
 @router.get("/status", response_model=AccessStatus)
 async def payment_status(user: dict = Depends(get_current_user)):
-    return _access_status(user)
+    pricing = await _get_pricing_config()
+    return _access_status(user, pricing)
 
 
 @router.post("/order", response_model=PaymentOrderOut)
 async def create_order(user: dict = Depends(get_current_user)):
     settings = get_settings()
+    pricing = await _get_pricing_config()
+    
     if user.get("role") == "admin":
         raise HTTPException(status_code=400, detail="Admin accounts already have test access")
-    if _access_status(user).active:
+    if _access_status(user, pricing).active:
         raise HTTPException(status_code=400, detail="Your test access is already active")
     if not settings.razorpay_key_id or not settings.razorpay_key_secret:
         raise HTTPException(status_code=503, detail="Payments are not configured yet")
 
+    # Calculate final amount with discount and tax
+    base_amount = pricing["price_rupees"]
+    discount_pct = pricing["discount_percentage"] if pricing["discount_active"] else 0
+    effective_amount = int(base_amount * (1 - discount_pct / 100))
+    tax_pct = pricing["tax_percentage"]
+    final_amount_paise = int(effective_amount * (1 + tax_pct / 100) * 100)
+
     receipt = f"test_{str(user['_id'])[-8:]}_{secrets.token_hex(5)}"
     request_body = json.dumps({
-        "amount": settings.subscription_price_paise,
+        "amount": final_amount_paise,
         "currency": "INR",
         "receipt": receipt,
-        "notes": {"user_id": str(user["_id"]), "plan": "30-day-test-access"},
+        "notes": {
+            "user_id": str(user["_id"]),
+            "plan": "30-day-test-access",
+            "base_price": str(base_amount),
+            "discount": str(discount_pct),
+            "tax": str(tax_pct),
+        },
     }).encode()
     credentials = base64.b64encode(
         f"{settings.razorpay_key_id}:{settings.razorpay_key_secret}".encode()
@@ -119,7 +165,7 @@ async def create_order(user: dict = Depends(get_current_user)):
 
     await get_db().payments.insert_one({
         "user_id": user["_id"], "order_id": order["id"], "receipt": receipt,
-        "amount": settings.subscription_price_paise, "currency": "INR",
+        "amount": final_amount_paise, "currency": "INR",
         "status": "created", "created_at": datetime.now(timezone.utc),
     })
     return PaymentOrderOut(key_id=settings.razorpay_key_id, order_id=order["id"], amount=order["amount"])
@@ -128,6 +174,8 @@ async def create_order(user: dict = Depends(get_current_user)):
 @router.post("/verify", response_model=AccessStatus)
 async def verify_payment(payload: PaymentVerify, user: dict = Depends(get_current_user)):
     settings = get_settings()
+    pricing = await _get_pricing_config()
+    
     if not settings.razorpay_key_secret:
         raise HTTPException(status_code=503, detail="Payments are not configured yet")
     expected = hmac.new(
@@ -148,7 +196,7 @@ async def verify_payment(payload: PaymentVerify, user: dict = Depends(get_curren
         now = datetime.now(timezone.utc)
         current_expiry = _normalize_expiry(user.get("access_expires_at"))
         start_time = current_expiry if current_expiry and current_expiry > now else now
-        expires_at = start_time + timedelta(days=settings.subscription_days)
+        expires_at = start_time + timedelta(days=pricing["duration_days"])
         await db.payments.update_one({"_id": payment["_id"]}, {"$set": {
             "status": "paid", "payment_id": payload.razorpay_payment_id,
             "paid_at": now, "access_expires_at": expires_at,
@@ -157,7 +205,7 @@ async def verify_payment(payload: PaymentVerify, user: dict = Depends(get_curren
         user["access_expires_at"] = expires_at
     else:
         user = await db.users.find_one({"_id": user["_id"]})
-    return _access_status(user)
+    return _access_status(user, pricing)
 
 
 @router.post("/course-order", response_model=PaymentOrderOut)
