@@ -26,6 +26,8 @@ from ..models import (
     SubscriptionPlan,
     SubscriptionPlanCreate,
     SubscriptionPlanUpdate,
+    SubscriptionPricingConfig,
+    SubscriptionPricingConfigOut,
 )
 from ..pdf_parser import parse_quiz_from_pdf
 from ..security import require_admin
@@ -243,6 +245,101 @@ async def delete_subscription(plan_id: str, admin: dict = Depends(require_admin)
     result = await db.subscriptions.delete_one({"_id": oid})
     if not result.deleted_count:
         raise HTTPException(status_code=404, detail="Subscription plan not found")
+
+
+# ---------- Subscription Pricing Configuration ----------
+
+
+@router.get("/subscriptions-pricing/config", response_model=SubscriptionPricingConfigOut)
+async def get_pricing_config(admin: dict = Depends(require_admin)):
+    """Get current subscription pricing configuration."""
+    db = get_db()
+    config = await db.pricing_config.find_one({})
+    
+    if not config:
+        # Return default config
+        default_config = {
+            "default_price_rupees": 99,
+            "discount_percentage": 0,
+            "discount_active": False,
+            "tax_percentage": 0,
+            "currency": "INR",
+            "updated_at": datetime.now(timezone.utc),
+            "updated_by": admin["_id"],
+        }
+        await db.pricing_config.insert_one(default_config)
+        config = default_config
+    
+    updated_by_user = await db.users.find_one({"_id": config.get("updated_by")})
+    updated_by_email = updated_by_user.get("email", "system") if updated_by_user else "system"
+    
+    default_price = config.get("default_price_rupees", 99)
+    discount_pct = config.get("discount_percentage", 0) if config.get("discount_active") else 0
+    tax_pct = config.get("tax_percentage", 0)
+    
+    effective_price = int(default_price * (1 - discount_pct / 100))
+    price_with_tax = int(effective_price * (1 + tax_pct / 100))
+    
+    return SubscriptionPricingConfigOut(
+        default_price_rupees=default_price,
+        discount_percentage=config.get("discount_percentage", 0),
+        discount_active=config.get("discount_active", False),
+        tax_percentage=config.get("tax_percentage", 0),
+        currency=config.get("currency", "INR"),
+        effective_price_rupees=effective_price,
+        price_with_tax_rupees=price_with_tax,
+        updated_at=config.get("updated_at"),
+        updated_by_email=updated_by_email,
+    )
+
+
+@router.patch("/subscriptions-pricing/config", response_model=SubscriptionPricingConfigOut)
+async def update_pricing_config(
+    payload: SubscriptionPricingConfig, admin: dict = Depends(require_admin)
+):
+    """Update subscription pricing configuration."""
+    db = get_db()
+    
+    update_data = {
+        "default_price_rupees": payload.default_price_rupees,
+        "discount_percentage": payload.discount_percentage,
+        "discount_active": payload.discount_active,
+        "tax_percentage": payload.tax_percentage,
+        "currency": payload.currency,
+        "updated_at": datetime.now(timezone.utc),
+        "updated_by": admin["_id"],
+    }
+    
+    result = await db.pricing_config.update_one(
+        {},
+        {"$set": update_data},
+        upsert=True
+    )
+    
+    # Get updated config
+    config = await db.pricing_config.find_one({})
+    
+    updated_by_user = await db.users.find_one({"_id": admin["_id"]})
+    updated_by_email = updated_by_user.get("email", "system") if updated_by_user else "system"
+    
+    default_price = config.get("default_price_rupees", 99)
+    discount_pct = config.get("discount_percentage", 0) if config.get("discount_active") else 0
+    tax_pct = config.get("tax_percentage", 0)
+    
+    effective_price = int(default_price * (1 - discount_pct / 100))
+    price_with_tax = int(effective_price * (1 + tax_pct / 100))
+    
+    return SubscriptionPricingConfigOut(
+        default_price_rupees=default_price,
+        discount_percentage=config.get("discount_percentage", 0),
+        discount_active=config.get("discount_active", False),
+        tax_percentage=config.get("tax_percentage", 0),
+        currency=config.get("currency", "INR"),
+        effective_price_rupees=effective_price,
+        price_with_tax_rupees=price_with_tax,
+        updated_at=config.get("updated_at"),
+        updated_by_email=updated_by_email,
+    )
 
 
 async def _get_quiz(quiz_id: str) -> dict:

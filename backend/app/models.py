@@ -115,6 +115,28 @@ class SubscriptionPlan(BaseModel):
     updated_at: datetime | None = None
 
 
+class SubscriptionPricingConfig(BaseModel):
+    """Admin pricing configuration for subscriptions."""
+    default_price_rupees: int = Field(ge=0)
+    discount_percentage: int = Field(default=0, ge=0, le=100)
+    discount_active: bool = False
+    tax_percentage: int = Field(default=0, ge=0, le=100)
+    currency: str = "INR"
+
+
+class SubscriptionPricingConfigOut(BaseModel):
+    """Response model for subscription pricing config."""
+    default_price_rupees: int
+    discount_percentage: int
+    discount_active: bool
+    tax_percentage: int
+    currency: str
+    effective_price_rupees: int  # price after discount
+    price_with_tax_rupees: int  # price after tax
+    updated_at: datetime
+    updated_by_email: str
+
+
 # ---------- Quiz ----------
 
 
